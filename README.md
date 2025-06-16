@@ -6,6 +6,7 @@ coreography while they cannot comunicate with eatch other.
 | Name | Quantity | Board |
 |---|---|---|
 | [mBot Ranger](https://www.makeblock.com/pages/mbot-ranger-robot-building-kit) | 2 | Arduino Mega or Mega 2560 |
+| [Lego Mindstorm](https://en.wikipedia.org/wiki/Lego_Mindstorms) | 1 | EV3 Intelligent Brick |
 
 ## Install
 

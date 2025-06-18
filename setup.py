@@ -3,21 +3,21 @@ import subprocess
 import sys
 
 from pathlib import Path
+from typing import Literal
 
 
-def panic(msg: str):
-    print(msg, file=sys.stderr)
-    exit(-1)
+def on(os: Literal["win32", "linux", "darwin"]):
+    return sys.platform.startswith(os)
 
 
 if __name__ == "__main__":
     if shutil.which("git") is None:
-        panic("You need to have git installed to run this script")
+        print("You need to have git installed to run this script", file=sys.stderr)
+        exit(-1)
 
-    platform = sys.platform
     dest = Path.home()
     # On Windows and Mac arduino uses the Documents folder for the sketch files
-    if platform.startswith("win32") or platform.startswith("darwin"):
+    if on("win32") or on("darwin"):
         dest = dest / "Documents"
     dest = dest / "Arduino" / "libraries" / "Makeblock"
 
@@ -32,3 +32,17 @@ if __name__ == "__main__":
             dest,
         ]
     )
+
+    print("Restart Arduino IDE to see the changes")
+
+    if on("win32"):
+        print("Make sure also have the drivers installed:")
+        print(
+            "  https://drive.google.com/file/d/1O-y4VqChv4kQgM-7w4QCXaPL6ap6yvCg/view?usp=sharing"
+        )
+
+    if on("darwin"):
+        print("Make sure also have the drivers installed:")
+        print(
+            "https://drive.google.com/file/d/1MI08A74Z41IwNeLIQUV5P7fKNnyCaMa1/view?usp=sharing"
+        )

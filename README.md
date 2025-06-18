@@ -21,6 +21,11 @@ mBot Ranger:
 arduino-cli compile -b arduino:avr:mega --port <port> --upload <path-to-sketch>
 ```
 
+Lego Mindstorm (run via ssh):
+```
+gcc file.c -lev3dev-c -o file
+```
+
 ## Docs
 
 For Lego Mindstorms, follow the documentation on ev3dev:

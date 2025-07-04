@@ -72,7 +72,7 @@ void rotateClockwiseBy(int degrees)
     Serial.print(" Z:");
     Serial.println(gyro.getAngleZ());
   }
-  while(abs(end - gyro.getAngleZ()) > threshold);  // TODO: [-180, 180]
+  while(abs(end - gyro.getAngleZ()) > threshold);
 
   Serial.println("Stop rotation");
   stop();

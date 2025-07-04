@@ -8,6 +8,7 @@
  */
 
 #include <MeAuriga.h>
+#include <Wire.h>
 
 /////////// Utility Functions ///////////
 
@@ -86,6 +87,17 @@ void test_sonic_sensor()
   }
 }
 
+/////////// Gyro ////////////////////////
+MeGyro gyro(1,0x69);      //On Board external gryo sensor
+
+void test_gyro()
+{
+  gyro.update();
+  Serial.print("Z:");
+  Serial.println(gyro.getAngleZ());
+  delay(10);
+}
+
 /////////// Main ////////////////////////
 
 void setup()
@@ -96,6 +108,8 @@ void setup()
   led.setpin(44);
   // Init Ultrasonic Sensor in port 6
   sonic_sensor = new MeUltrasonicSensor(6);
+
+  gyro.begin();
 }
 
 void loop()
@@ -103,4 +117,5 @@ void loop()
   test_motors();
   test_rgb();
   test_sonic_sensor();
+  test_gyro();
 }

@@ -42,7 +42,7 @@ void rotate(Rotation direction, int8_t slices)
 
 void rotateClockwiseBy(int degrees)
 {
-  int pwm = 40;
+  int pwm = 150; // 40 for Raptor, 150 for Raider
   double threshold = 0;
   gyro.update();
   double start = gyro.getAngleZ();

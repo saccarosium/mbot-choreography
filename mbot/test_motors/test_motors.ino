@@ -106,8 +106,8 @@ void setup()
   Serial.begin(9600);
   // LED Ring controller is on Auriga D44/PWM
   led.setpin(44);
-  // Init Ultrasonic Sensor in port 6
-  sonic_sensor = new MeUltrasonicSensor(6);
+  // Init Ultrasonic Sensor in port 10
+  sonic_sensor = new MeUltrasonicSensor(10);
 
   gyro.begin();
 }

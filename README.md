@@ -26,7 +26,7 @@ Lego Mindstorm, connect via Bluetooth and run:
 ssh robot@ev3dev
 # Default password is maker
 
-gcc file.c -lev3dev-c -o file
+gcc file.c -lev3dev-c -o bin/file
 ```
 
 ## Docs

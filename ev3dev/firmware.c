@@ -186,6 +186,87 @@ void rotateClockwiseBy(int degrees){
     stopMotors();
 }
 
+/**
+ * Rotates and finds two robots
+ */
+void step1RotateAndMeasure(){
+    int degrees = 180;
+    int threshold = 5;
+    int start = getGyroDegrees();
+    int end = start + degrees;
+
+    if(end > 180){
+        end -= 360;
+    }
+
+    if(end < -180){
+        end += 360;
+    }
+
+    if(degrees < 0){
+        printf("Rotating left\n");
+        move(LEFT);
+    } else {
+        printf("Rotating right\n");
+        move(RIGHT);
+    }
+
+    // Ignore any measument until these degrees of rotations are reached
+    int ignoreRobotsUntil = start;
+
+    // Number of robots found [0, 1]
+    int robotsFound = 0;
+
+    // Angle and distance of each robot
+    int degRobot1 = -1;
+    int dstRobot1 = -1;
+
+    int degRobot2 = -1;
+    int dstRobot2 = -1;
+    
+    printf("Starting at degs: %d\n", start);
+    
+    do{
+        Sleep(10);
+        printf("Z: %d\n", getGyroDegrees());
+        int distance = getUsDistanceCm();
+        printf("Dst: %d\n", distance);
+
+        if(distance < 1200 && ignoreRobotsUntil < getGyroDegrees() && robotsFound < 2){
+            // Distance independently from starting angle, + an offset of 25
+            int robotAngle = getGyroDegrees() - start + 25;
+            
+            printf("Robot #%d found at %d: ", robotsFound, robotAngle);
+            
+            ignoreRobotsUntil = getGyroDegrees() + 45;
+            
+            if(robotsFound == 0){
+                degRobot1 = robotAngle;
+                dstRobot1 = distance;
+            }
+            else{
+                if(robotsFound == 1){
+                    degRobot2 = robotAngle;
+                    dstRobot2 = distance;
+                }
+            }
+            
+            robotsFound++;
+
+            stopMotors();
+            Sleep(2000);
+            move(RIGHT);
+        }
+    }
+    while(abs(end - getGyroDegrees()) > threshold);
+
+    printf("Robot 1 found at %d with distance %d\n", degRobot1, dstRobot1);
+    printf("Robot 2 found at %d with distance %d\n", degRobot2, dstRobot2);
+
+    printf("Stop rotation\n");
+    stopMotors();
+}
+
 // MAIN
 int main( void )
 {
@@ -211,10 +292,18 @@ int main( void )
     initSensors(&ultrasonic_sn, &gyro_sn);
 
     // Measure data
-    while(true){
-        rotateClockwiseBy(90);
-        Sleep(2000);
-    }
+    // while(true){
+    //     rotateClockwiseBy(90);
+    //     Sleep(2000);
+    // }
+
+    step1RotateAndMeasure();
+
+    // while(true){
+    //     int distance = getUsDistanceCm();
+    //     printf("Dst: %d\n", distance);
+    //     Sleep(10);
+    // }
 
     ev3_uninit();
 	printf( "*** ( EV3 ) Bye! ***\n" );

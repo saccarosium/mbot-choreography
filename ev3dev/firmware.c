@@ -302,6 +302,71 @@ void polarPointToPoint(PolarPoint *polarPoint, Point *point){
     point->y = y;
 }
 
+/**
+ * Calculates the Euclidean distance between two points
+ */
+double euclideanDistance(Point *a, Point *b) {
+    return sqrt((a->x - b->x)*(a->x - b->x) + (a->y - b->y)*(a->y - b->y));
+}
+
+/**
+ * The cosine law says that, given a triangle with sides a, b and c respectively at the opposite
+ * of the vertices A, B, C, is it possible to find each internal angle as follows:
+ * 
+ * `A = arccos((b^2 + c^2 - a^2) / (2 * b * c))`
+ * 
+ * This function returns the internal angle (in degrees) opposite to side a
+ */
+double cosineLaw(double a, double b, double c) {
+    return acos((b*b + c*c - a*a) / (2 * b * c)) * (180 / M_PI); // Multiply by 180*pi to convert into degrees
+}
+
+
+/**
+ * Given position of the other two robots, assuming self in (0, 0), returns the index of the robot
+ * positioned at the angle >= 120 degrees:
+ * - 0 -> Self
+ * - 1 -> r1
+ * - 2 -> r2
+ */
+int calcRobotIn120Angle(Point *r1, Point *r2){
+    Point self = {
+        x: 0,
+        y: 0
+    }
+
+    // Opposite to self
+    double oppSelf = distance(r1, r2);
+    // Opposite to r1
+    double oppR1 = distance(r2, self);
+    // Opposite to r2
+    double oppR2 = distance(self, r1);
+
+    double angleSelf = angle(oppSelf, oppR1, oppR2);
+    double angleR1 = angle(oppR1, oppR2, oppSelf);
+    double angleR2 = angle(oppR2, oppSelf, oppR1);
+
+    if(angleSelf >= 120){
+        return 0;
+    }
+    else {
+        if(angleR1 >= 120){
+            return 1;
+        }
+        else{
+            if(angleR2 >= 120){
+                return 2;
+            }
+            else{
+                printf("No robot is in angle > 120 degrees :(");
+                // Probably motors are already stopped, but do anyway
+                stopMotors();
+                exit(1);
+            }
+        }
+    }
+}
+
 // MAIN
 int main( void )
 {
@@ -336,6 +401,28 @@ int main( void )
 
     printf("Robot1 x: %d, y: %d\n", robot1.x, robot1.y);
     printf("Robot2 x: %d, y: %d\n", robot2.x, robot2.y);
+
+    // Calculate which robot is in 120 degrees angle
+    int robotIn120Degrees = calcRobotIn120Angle(&robot1, &robot2);
+
+    switch (robotIn120Degrees){
+        case 0:
+            // TODO: other robots should move towards me
+            break;
+
+        case 1:
+            // TODO: move towards robot 1
+            break;
+        case 2:
+            // TODO: move towards robot 2
+            break;
+        
+        default:
+            printf("This should never happen!");
+            stopMotors();
+            exit(1);
+            break;
+    }
 
     ev3_uninit();
 	printf( "*** ( EV3 ) Bye! ***\n" );

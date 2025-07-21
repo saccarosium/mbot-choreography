@@ -465,14 +465,14 @@ void step3MoveInLine(Point *leaderCoord, Point *secondCoord, Point *thirdCoord, 
     printf("Midpoint is x: %d, y: %d, polar coords angle: %d, distance: %d\n", midPoint.x, midPoint.y, movementPolarOffset.angleDeg, movementPolarOffset.distanceMm);
 
     // The robot needs to move in the direction specified by this polar point
-    printf("From %d rotate at angle %d\n", getGyroDegrees(), movementPolarOffset.angleDeg);
+    // printf("From %d rotate at angle %d\n", getGyroDegrees(), movementPolarOffset.angleDeg);
     rotateAtAngle(movementPolarOffset.angleDeg);
 
-    printf("Moving on line direction\n");
+    int movementDistanceMm = 500;
+    int movementTimeSeconds = movementDistanceMm / speedMmPerSecond;
+    printf("Moving on line direction for %d ms\n", movementTimeSeconds * 1000);
+    
     move(FORWARD);
-
-    int movementDistanceMm = 40;
-    double movementTimeSeconds = movementDistanceMm / speedMmPerSecond;
     Sleep(movementTimeSeconds * 1000);
     stopMotors();
 }
@@ -527,7 +527,7 @@ int main( void )
     // Calculate which robot is in 120 degrees angle
     int robotIn120Degrees = calcRobotIn120Angle(&robot1, &robot2);
     printf("Robot in 120 degrees is: %d\n", robotIn120Degrees);
-    int speedMmPerSecond = 10;
+    int speedMmPerSecond = 140; // Calculated manually
 
     switch (robotIn120Degrees){
         case 0:

@@ -55,7 +55,7 @@ uint8_t ultrasonic_sn, gyro_sn;
 int motorsSpeed;
 int initialGyroDeg = 0;
 int rotationThresholdDegrees = 5;
-int gatheringStopDistanceMm = 70;
+int gatheringStopDistanceMm = 100;
 
 // Helper functions
 int min(int a, int b){
@@ -135,19 +135,26 @@ void stopMotors(){
 }
 
 void move(Direction direction){
+    // Stop any previous movement
+    stopMotors();
+
     switch(direction){
         case FORWARD:
-            set_tacho_speed_sp(l_motor_sn, -motorsSpeed);
-            set_tacho_speed_sp(r_motor_sn, -motorsSpeed);
+            set_tacho_speed_sp(l_motor_sn, motorsSpeed);
+            set_tacho_speed_sp(r_motor_sn, motorsSpeed);
+            break;
         case BACKWARD:
-            set_tacho_speed_sp(l_motor_sn, motorsSpeed);
-            set_tacho_speed_sp(r_motor_sn, motorsSpeed);
-        case RIGHT:
             set_tacho_speed_sp(l_motor_sn, -motorsSpeed);
-            set_tacho_speed_sp(r_motor_sn, motorsSpeed);
-        case LEFT:
+            set_tacho_speed_sp(r_motor_sn, -motorsSpeed);
+            break;
+        case RIGHT:
             set_tacho_speed_sp(l_motor_sn, motorsSpeed);
             set_tacho_speed_sp(r_motor_sn, -motorsSpeed);
+            break;
+        case LEFT:
+            set_tacho_speed_sp(l_motor_sn, -motorsSpeed);
+            set_tacho_speed_sp(r_motor_sn, motorsSpeed);
+            break;
     }
     set_tacho_command_inx(l_motor_sn, TACHO_RUN_FOREVER);
     set_tacho_command_inx(r_motor_sn, TACHO_RUN_FOREVER);
@@ -197,6 +204,8 @@ void rotateAtAngle(int degrees){
         Sleep(10);
     }
     while(abs(degrees - getGyroDegrees()) > rotationThresholdDegrees);
+
+    stopMotors();
 }
 
 /**
@@ -333,18 +342,18 @@ int calcRobotIn120Angle(Point *r1, Point *r2){
     Point self = {
         x: 0,
         y: 0
-    }
+    };
 
     // Opposite to self
-    double oppSelf = distance(r1, r2);
+    double oppSelf = euclideanDistance(r1, r2);
     // Opposite to r1
-    double oppR1 = distance(r2, self);
+    double oppR1 = euclideanDistance(r2, &self);
     // Opposite to r2
-    double oppR2 = distance(self, r1);
+    double oppR2 = euclideanDistance(&self, r1);
 
-    double angleSelf = angle(oppSelf, oppR1, oppR2);
-    double angleR1 = angle(oppR1, oppR2, oppSelf);
-    double angleR2 = angle(oppR2, oppSelf, oppR1);
+    double angleSelf = cosineLaw(oppSelf, oppR1, oppR2);
+    double angleR1 = cosineLaw(oppR1, oppR2, oppSelf);
+    double angleR2 = cosineLaw(oppR2, oppSelf, oppR1);
 
     if(angleSelf >= 120){
         return 0;
@@ -358,7 +367,7 @@ int calcRobotIn120Angle(Point *r1, Point *r2){
                 return 2;
             }
             else{
-                printf("No robot is in angle > 120 degrees :(");
+                printf("No robot is in angle > 120 degrees :(\n");
                 // Probably motors are already stopped, but do anyway
                 stopMotors();
                 exit(1);
@@ -403,6 +412,8 @@ void step2GatherAtRobot(PolarPoint *other, int *measuredSpeed){
  * In case this robot is the one positioned at angle > 120 degrees, wait for the  other two robots to gather
  */
 void step2WaitForGathering(PolarPoint *r1, PolarPoint *r2){
+    printf("Waiting for gathering of robot 1\n");
+
     // Wait for robot 1
     rotateAtAngle(r1->angleDeg);
     int distance = 0;
@@ -413,10 +424,9 @@ void step2WaitForGathering(PolarPoint *r1, PolarPoint *r2){
     }
     while(distance > gatheringStopDistanceMm);
 
-
+    printf("Waiting for gathering of robot 2\n");
     // Wait for robot 2
     rotateAtAngle(r2->angleDeg);
-    int distance = 0;
     
     do{
         Sleep(10);
@@ -438,25 +448,33 @@ void calcMidpoint(Point *p1, Point *p2, Point *midpoint){
  * and the middle point of the other two robots
  */
 void step3MoveInLine(Point *leaderCoord, Point *secondCoord, Point *thirdCoord, int speedMmPerSecond){
+    printf("Calculating line to move\n");
+
     Point midPoint;
-    calcMidpoint(&secondCoord, &thirdCoord, &midPoint);
+    calcMidpoint(secondCoord, thirdCoord, &midPoint);
 
     // Now, calculate the direction from the leader robot to the middle point
     Point movementOffset = {
-        x: midPoint.x - leaderCoord.x,
-        y: midPoint.y - leaderCoord.y
-    }
+        x: midPoint.x - leaderCoord->x,
+        y: midPoint.y - leaderCoord->y
+    };
     
     PolarPoint movementPolarOffset;
     pointToPolarPoint(&movementOffset, &movementPolarOffset);
 
+    printf("Midpoint is x: %d, y: %d, polar coords angle: %d, distance: %d\n", midPoint.x, midPoint.y, movementPolarOffset.angleDeg, movementPolarOffset.distanceMm);
+
     // The robot needs to move in the direction specified by this polar point
+    printf("From %d rotate at angle %d\n", getGyroDegrees(), movementPolarOffset.angleDeg);
     rotateAtAngle(movementPolarOffset.angleDeg);
+
+    printf("Moving on line direction\n");
     move(FORWARD);
 
-    int movementDistanceMm = 100;
+    int movementDistanceMm = 40;
     double movementTimeSeconds = movementDistanceMm / speedMmPerSecond;
     Sleep(movementTimeSeconds * 1000);
+    stopMotors();
 }
 
 // MAIN
@@ -481,11 +499,19 @@ int main( void )
 
     // Init devices
     initMotors(&l_motor_sn, &r_motor_sn);
+    stopMotors();
     initSensors(&ultrasonic_sn, &gyro_sn);
+    // exit(1);
 
     // Identify other robots polar coordinates
-    PolarPoint robot1Polar, robot2Polar;
-    step1DiscoverRobots(&robot1Polar, &robot2Polar);
+    PolarPoint robot1Polar, robot2Polar; // TODO: testing
+    //step1DiscoverRobots(&robot1Polar, &robot2Polar);
+
+    robot1Polar.angleDeg = 10;
+    robot1Polar.distanceMm = 100;
+
+    robot2Polar.angleDeg = 150;
+    robot2Polar.distanceMm = 70;
 
     Point robot1, robot2;
     polarPointToPoint(&robot1Polar, &robot1);
@@ -493,13 +519,15 @@ int main( void )
     Point self = {
         x: 0,
         y: 0
-    }
+    };
 
     printf("Robot1 x: %d, y: %d\n", robot1.x, robot1.y);
     printf("Robot2 x: %d, y: %d\n", robot2.x, robot2.y);
 
     // Calculate which robot is in 120 degrees angle
     int robotIn120Degrees = calcRobotIn120Angle(&robot1, &robot2);
+    printf("Robot in 120 degrees is: %d\n", robotIn120Degrees);
+    int speedMmPerSecond = 10;
 
     switch (robotIn120Degrees){
         case 0:
@@ -508,30 +536,28 @@ int main( void )
             Sleep(1000); // TODO: choose waiting time
 
             // Move in line
-            step3MoveInLine(&self, &robot1, &robot2);
+            step3MoveInLine(&self, &robot1, &robot2, speedMmPerSecond); // TODO: unknown speed
             break;
 
         case 1:
             // gather at robot 1
-            int speedMmPerSecond = 0;
             step2GatherAtRobot(&robot1Polar, &speedMmPerSecond);
             Sleep(1000); // TODO: choose waiting time
 
             // Move in line
-            step3MoveInLine(&robot1, &robot2, &self);
+            step3MoveInLine(&robot1, &robot2, &self, speedMmPerSecond);
             break;
         case 2:
             // gather at robot 2
-            int speedMmPerSecond = 0;
             step2GatherAtRobot(&robot2Polar, &speedMmPerSecond);
             Sleep(1000); // TODO: choose waiting time
 
             // Move in line
-            step3MoveInLine(&robot2, &robot1, &self);
+            step3MoveInLine(&robot2, &robot1, &self, speedMmPerSecond);
             break;
         
         default:
-            printf("This should never happen!");
+            printf("This should never happen!\n");
             stopMotors();
             exit(1);
             break;

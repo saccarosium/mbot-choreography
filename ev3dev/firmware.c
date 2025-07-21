@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <math.h>
 #include <stdlib.h>
 #include "ev3.h"
 #include "ev3_port.h"
@@ -36,11 +37,22 @@ typedef enum {
   LEFT,
 } Direction;
 
+typedef struct {
+    int x;
+    int y;
+} Point;
+
+typedef struct {
+    int distanceMm;
+    int angleDeg;
+} PolarPoint;
+
 // Global variables
 uint8_t l_motor_sn, r_motor_sn;
 uint8_t ultrasonic_sn, gyro_sn;
 
 int motorsSpeed;
+int initialGyroDeg = 0;
 
 // Helper functions
 int min(int a, int b){
@@ -92,9 +104,11 @@ void initSensors(){
 
     if (!ev3_search_sensor(LEGO_EV3_US, &ultrasonic_sn, 0)) {
 		printf("Ultrasonic sensor should be on port in1, instead not found :(\n)");
+        exit(1);
 	} else {
 		if (!ev3_search_sensor(LEGO_EV3_GYRO, &gyro_sn, 0)) {
             printf("Gyro sensor should be on port in2, instead not found :(\n)");
+            exit(1);
         } else {
             printf("Found both ultrasonic (sn: %d) and gyro (sn: %d) sensors!\n", ultrasonic_sn, gyro_sn);
             
@@ -105,6 +119,9 @@ void initSensors(){
             set_sensor_mode(gyro_sn, "GYRO-ANG");
         }
 	}
+
+    // Set the initial gyro angle so to ignore it in further measurements
+    get_sensor_value(0, gyro_sn, &initialGyroDeg);
 
     printf("Sensors initialized\n");
 }
@@ -133,29 +150,36 @@ void move(Direction direction){
     set_tacho_command_inx(r_motor_sn, TACHO_RUN_FOREVER);
 }
 
-int getUsDistanceCm(){
+int getUsDistanceMm(){
 	int val;
     get_sensor_value(0, ultrasonic_sn, &val);
 
     return val;
 }
 
+/**
+ * Returns the angle always in range [0, 360], where 0 is the initial orientation at the start of the program
+ */
 int getGyroDegrees(){
     int val;
     get_sensor_value(0, gyro_sn, &val);
 
+    // Subtract the initial offset of the gyro, so the measured angle
+    // will always be zero at the robot's initial orientation
+    val -= initialGyroDeg;
+
     // Gyro outputs in range [-32768, 32767]
-    while(val > 180){
+    while(val > 360){
         val -= 360;
     }
-    while(val < -180){
+    while(val < 0){
         val += 360;
     }
 
     return val;
 }
 
-void rotateClockwiseBy(int degrees){
+void _____rotateClockwiseBy(int degrees){
     int threshold = 5;
     int start = getGyroDegrees();
     int end = start + degrees;
@@ -189,27 +213,21 @@ void rotateClockwiseBy(int degrees){
 /**
  * Rotates and finds two robots
  */
-void step1RotateAndMeasure(){
+void step1DiscoverRobots(PolarPoint *robot1, PolarPoint *robot2){
     int degrees = 180;
+    int angleOffset = 25;
+    int angleIgnore = 70;
+    int thresholdDistance = 600;
+
     int threshold = 5;
     int start = getGyroDegrees();
     int end = start + degrees;
 
-    if(end > 180){
-        end -= 360;
-    }
+    // No need to clamp the values, we assume no rotation exceeds 360 degrees since its the initial one
 
-    if(end < -180){
-        end += 360;
-    }
-
-    if(degrees < 0){
-        printf("Rotating left\n");
-        move(LEFT);
-    } else {
-        printf("Rotating right\n");
-        move(RIGHT);
-    }
+    // Always rotates right
+    printf("Rotating right\n");
+    move(RIGHT);
 
     // Ignore any measument until these degrees of rotations are reached
     int ignoreRobotsUntil = start;
@@ -217,42 +235,40 @@ void step1RotateAndMeasure(){
     // Number of robots found [0, 1]
     int robotsFound = 0;
 
-    // Angle and distance of each robot
-    int degRobot1 = -1;
-    int dstRobot1 = -1;
-
-    int degRobot2 = -1;
-    int dstRobot2 = -1;
-    
     printf("Starting at degs: %d\n", start);
     
     do{
         Sleep(10);
-        printf("Z: %d\n", getGyroDegrees());
-        int distance = getUsDistanceCm();
-        printf("Dst: %d\n", distance);
+        int distance = getUsDistanceMm();
+        int rotation = getGyroDegrees();
 
-        if(distance < 1200 && ignoreRobotsUntil < getGyroDegrees() && robotsFound < 2){
-            // Distance independently from starting angle, + an offset of 25
-            int robotAngle = getGyroDegrees() - start + 25;
+        // printf("Z: %d\n", rotation);
+        // printf("Dst: %d\n", distance);
+
+        if(distance < thresholdDistance && ignoreRobotsUntil < rotation && robotsFound < 2){
+            // The angle of the robot wrt initial orientation at start of the program, plus an offset
+            int robotAngle = rotation + angleOffset;
+
+            if(robotAngle > 360){
+                robotAngle -= 360;
+            }
             
-            printf("Robot #%d found at %d: ", robotsFound, robotAngle);
+            printf("Robot #%d found at (total) angle %d and distance %d\n", robotsFound, robotAngle, distance);
             
-            ignoreRobotsUntil = getGyroDegrees() + 45;
+            ignoreRobotsUntil = rotation + angleIgnore;
             
             if(robotsFound == 0){
-                degRobot1 = robotAngle;
-                dstRobot1 = distance;
+                robot1->distanceMm = distance;
+                robot1->angleDeg = robotAngle;
             }
             else{
                 if(robotsFound == 1){
-                    degRobot2 = robotAngle;
-                    dstRobot2 = distance;
+                    robot2->distanceMm = distance;
+                    robot2->angleDeg = robotAngle;
                 }
             }
             
             robotsFound++;
-
             stopMotors();
             Sleep(2000);
             move(RIGHT);
@@ -260,11 +276,30 @@ void step1RotateAndMeasure(){
     }
     while(abs(end - getGyroDegrees()) > threshold);
 
-    printf("Robot 1 found at %d with distance %d\n", degRobot1, dstRobot1);
-    printf("Robot 2 found at %d with distance %d\n", degRobot2, dstRobot2);
-
     printf("Stop rotation\n");
     stopMotors();
+
+    if(robotsFound < 2){
+        printf("Robots not found :(");
+        exit(1);
+    }
+
+    printf("Robot 1 found at %d with distance %d\n", robot1->angleDeg, robot1->distanceMm);
+    printf("Robot 2 found at %d with distance %d\n", robot2->angleDeg, robot2->distanceMm);
+}
+
+/**
+ * Converts polar coordinates into cartesian coordinate
+ * Note that x axis is directed towards the orientation of the robot at the start of the program
+ */
+void polarPointToPoint(PolarPoint *polarPoint, Point *point){
+    double angleRadiant = polarPoint->angleDeg * M_PI / 180.0;
+
+    int x = (int)round(cos(angleRadiant) * polarPoint->distanceMm);
+    int y = (int)round(sin(angleRadiant) * polarPoint->distanceMm);
+
+    point->x = x;
+    point->y = y;
 }
 
 // MAIN
@@ -291,19 +326,16 @@ int main( void )
     initMotors(&l_motor_sn, &r_motor_sn);
     initSensors(&ultrasonic_sn, &gyro_sn);
 
-    // Measure data
-    // while(true){
-    //     rotateClockwiseBy(90);
-    //     Sleep(2000);
-    // }
+    // Identify other robots polar coordinates
+    PolarPoint robot1Polar, robot2Polar;
+    step1DiscoverRobots(&robot1Polar, &robot2Polar);
 
-    step1RotateAndMeasure();
+    Point robot1, robot2;
+    polarPointToPoint(&robot1Polar, &robot1);
+    polarPointToPoint(&robot2Polar, &robot2);
 
-    // while(true){
-    //     int distance = getUsDistanceCm();
-    //     printf("Dst: %d\n", distance);
-    //     Sleep(10);
-    // }
+    printf("Robot1 x: %d, y: %d\n", robot1.x, robot1.y);
+    printf("Robot2 x: %d, y: %d\n", robot2.x, robot2.y);
 
     ev3_uninit();
 	printf( "*** ( EV3 ) Bye! ***\n" );

@@ -55,6 +55,7 @@ uint8_t ultrasonic_sn, gyro_sn;
 int motorsSpeed;
 int initialGyroDeg = 0;
 int rotationThresholdDegrees = 5;
+int gatheringStopDistanceMm = 70;
 
 // Helper functions
 int min(int a, int b){
@@ -380,7 +381,6 @@ void step2GatherAtRobot(PolarPoint *other, int *measuredSpeed){
 
     int intialDistance = getUsDistanceMm();
     int distance = intialDistance;
-    int stopDistanceMm = 70;
     
     clock_t start = clock();
 
@@ -388,17 +388,42 @@ void step2GatherAtRobot(PolarPoint *other, int *measuredSpeed){
         Sleep(10);
         distance = getUsDistanceMm();
     }
-    while(distance > stopDistanceMm);
+    while(distance > gatheringStopDistanceMm);
 
     if(measuredSpeed != NULL){
         clock_t end = clock();
 
         double elapsedSeconds = (double)(end - start) / CLOCKS_PER_SEC;
 
-        *measuredSpeed = (int)round((intialDistance - stopDistanceMm) / elapsedSeconds);
+        *measuredSpeed = (int)round((intialDistance - gatheringStopDistanceMm) / elapsedSeconds);
     }
 }
 
+/**
+ * In case this robot is the one positioned at angle > 120 degrees, wait for the  other two robots to gather
+ */
+void step2WaitForGathering(PolarPoint *r1, PolarPoint *r2){
+    // Wait for robot 1
+    rotateAtAngle(r1->angleDeg);
+    int distance = 0;
+    
+    do{
+        Sleep(10);
+        distance = getUsDistanceMm();
+    }
+    while(distance > gatheringStopDistanceMm);
+
+
+    // Wait for robot 2
+    rotateAtAngle(r2->angleDeg);
+    int distance = 0;
+    
+    do{
+        Sleep(10);
+        distance = getUsDistanceMm();
+    }
+    while(distance > gatheringStopDistanceMm);
+}
 /**
  * Given two points, calculates the middle point between them
  */
@@ -478,7 +503,8 @@ int main( void )
 
     switch (robotIn120Degrees){
         case 0:
-            // TODO: other robots should move towards me
+            // other robots should move towards me
+            step2WaitForGathering(&robot1Polar, &robot2Polar);
             Sleep(1000); // TODO: choose waiting time
 
             // Move in line

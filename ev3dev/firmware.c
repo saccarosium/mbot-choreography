@@ -399,21 +399,20 @@ void step2GatherAtRobot(PolarPoint *other, int *measuredSpeed){
     }
 }
 
-
+/**
+ * Given two points, calculates the middle point between them
+ */
 void calcMidpoint(Point *p1, Point *p2, Point *midpoint){
     midpoint->x = (p1->x + p2->x) / 2;
     midpoint->y = (p1->y + p2->y) / 2;
 }
 
-
-void step3MoveInLine(PolarPoint *leaderPolar, PolarPoint *secondPolar, PolarPoint *thirdPolar, int speedMmPerSecond){
-    // For the next step, calculate the target direction to where start moving in line
-    // We define it as the direction of the line connecting the leader robot to the midpoint of the opposite side
-    Point leaderCoord, secondCoord, thirdCoord;
-    polarPointToPoint(&leaderPolar, &leaderCoord);
-    polarPointToPoint(&secondPolar, &secondCoord);
-    polarPointToPoint(&thirdPolar, &thirdCoord);
-
+/**
+ * Given the leader robot
+ * and the other two robots, moves in the direction linking the position of the leader robot
+ * and the middle point of the other two robots
+ */
+void step3MoveInLine(Point *leaderCoord, Point *secondCoord, Point *thirdCoord, int speedMmPerSecond){
     Point midPoint;
     calcMidpoint(&secondCoord, &thirdCoord, &midPoint);
 
@@ -483,7 +482,7 @@ int main( void )
             Sleep(1000); // TODO: choose waiting time
 
             // Move in line
-            step3MoveInLine(&self, &robot1Polar, &robot2Polar);
+            step3MoveInLine(&self, &robot1, &robot2);
             break;
 
         case 1:
@@ -493,7 +492,7 @@ int main( void )
             Sleep(1000); // TODO: choose waiting time
 
             // Move in line
-            step3MoveInLine(&robot1Polar, &robot2Polar, &self);
+            step3MoveInLine(&robot1, &robot2, &self);
             break;
         case 2:
             // gather at robot 2
@@ -502,7 +501,7 @@ int main( void )
             Sleep(1000); // TODO: choose waiting time
 
             // Move in line
-            step3MoveInLine(&robot2Polar, &robot1Polar, &self);
+            step3MoveInLine(&robot2, &robot1, &self);
             break;
         
         default:

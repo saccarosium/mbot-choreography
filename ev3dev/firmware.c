@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <math.h>
 #include <stdlib.h>
+#include <time.h>
 #include "ev3.h"
 #include "ev3_port.h"
 #include "ev3_tacho.h"
@@ -53,6 +54,7 @@ uint8_t ultrasonic_sn, gyro_sn;
 
 int motorsSpeed;
 int initialGyroDeg = 0;
+int rotationThresholdDegrees = 5;
 
 // Helper functions
 int min(int a, int b){
@@ -179,35 +181,21 @@ int getGyroDegrees(){
     return val;
 }
 
-void _____rotateClockwiseBy(int degrees){
-    int threshold = 5;
-    int start = getGyroDegrees();
-    int end = start + degrees;
-
-    if(end > 180){
-        end -= 360;
-    }
-
-    if(end < -180){
-        end += 360;
-    }
-
-    if(degrees < 0){
-        printf("Rotating left\n");
-        move(LEFT);
-    } else {
-        printf("Rotating right\n");
+/**
+ * Rotates at a specific angle. Input is assumed in range [0, 360]
+ */
+void rotateAtAngle(int degrees){
+    if(degrees > getGyroDegrees()){
         move(RIGHT);
     }
-    
+    else{
+        move(LEFT);
+    }
+
     do{
         Sleep(10);
-        printf("Z: %d\n", getGyroDegrees());
     }
-    while(abs(end - getGyroDegrees()) > threshold);
-
-    printf("Stop rotation\n");
-    stopMotors();
+    while(abs(degrees - getGyroDegrees()) > rotationThresholdDegrees);
 }
 
 /**
@@ -219,7 +207,6 @@ void step1DiscoverRobots(PolarPoint *robot1, PolarPoint *robot2){
     int angleIgnore = 70;
     int thresholdDistance = 600;
 
-    int threshold = 5;
     int start = getGyroDegrees();
     int end = start + degrees;
 
@@ -274,7 +261,7 @@ void step1DiscoverRobots(PolarPoint *robot1, PolarPoint *robot2){
             move(RIGHT);
         }
     }
-    while(abs(end - getGyroDegrees()) > threshold);
+    while(abs(end - getGyroDegrees()) > rotationThresholdDegrees);
 
     printf("Stop rotation\n");
     stopMotors();
@@ -301,6 +288,18 @@ void polarPointToPoint(PolarPoint *polarPoint, Point *point){
     point->x = x;
     point->y = y;
 }
+
+/**
+ * Converts a point to polar coordinates
+ */
+void pointToPolarPoint(Point *point, PolarPoint *polarPoint) {
+    double x = (double)point->x;
+    double y = (double)point->y;
+
+    polarPoint->distanceMm = (int)round(sqrt(x * x + y * y));
+    polarPoint->angleDeg = (int)round(atan2(y, x) * 180.0 / M_PI);
+}
+
 
 /**
  * Calculates the Euclidean distance between two points
@@ -367,6 +366,75 @@ int calcRobotIn120Angle(Point *r1, Point *r2){
     }
 }
 
+/**
+ * Moves towards the robot on that polar coordinates, stopping at some distance from it.
+ * Additionally, calculates the average speed of the robot so that it can be used further.
+ * The speed is expressed in millimeters/sec
+ */
+void step2GatherAtRobot(PolarPoint *other, int *measuredSpeed){
+    // Face the robot
+    rotateAtAngle(other->angleDeg);
+
+    // Move forward until a certain distance
+    move(FORWARD);
+
+    int intialDistance = getUsDistanceMm();
+    int distance = intialDistance;
+    int stopDistanceMm = 70;
+    
+    clock_t start = clock();
+
+    do{
+        Sleep(10);
+        distance = getUsDistanceMm();
+    }
+    while(distance > stopDistanceMm);
+
+    if(measuredSpeed != NULL){
+        clock_t end = clock();
+
+        double elapsedSeconds = (double)(end - start) / CLOCKS_PER_SEC;
+
+        *measuredSpeed = (int)round((intialDistance - stopDistanceMm) / elapsedSeconds);
+    }
+}
+
+
+void calcMidpoint(Point *p1, Point *p2, Point *midpoint){
+    midpoint->x = (p1->x + p2->x) / 2;
+    midpoint->y = (p1->y + p2->y) / 2;
+}
+
+
+void step3MoveInLine(PolarPoint *leaderPolar, PolarPoint *secondPolar, PolarPoint *thirdPolar, int speedMmPerSecond){
+    // For the next step, calculate the target direction to where start moving in line
+    // We define it as the direction of the line connecting the leader robot to the midpoint of the opposite side
+    Point leaderCoord, secondCoord, thirdCoord;
+    polarPointToPoint(&leaderPolar, &leaderCoord);
+    polarPointToPoint(&secondPolar, &secondCoord);
+    polarPointToPoint(&thirdPolar, &thirdCoord);
+
+    Point midPoint;
+    calcMidpoint(&secondCoord, &thirdCoord, &midPoint);
+
+    // Now, calculate the direction from the leader robot to the middle point
+    Point movementOffset = {
+        x: midPoint.x - leaderCoord.x,
+        y: midPoint.y - leaderCoord.y
+    }
+    
+    PolarPoint movementPolarOffset;
+    pointToPolarPoint(&movementOffset, &movementPolarOffset);
+
+    // The robot needs to move in the direction specified by this polar point
+    rotateAtAngle(movementPolarOffset.angleDeg);
+    move(FORWARD);
+
+    int movementDistanceMm = 100;
+    double movementTimeSeconds = movementDistanceMm / speedMmPerSecond;
+    Sleep(movementTimeSeconds * 1000);
+}
+
 // MAIN
 int main( void )
 {
@@ -398,6 +466,10 @@ int main( void )
     Point robot1, robot2;
     polarPointToPoint(&robot1Polar, &robot1);
     polarPointToPoint(&robot2Polar, &robot2);
+    Point self = {
+        x: 0,
+        y: 0
+    }
 
     printf("Robot1 x: %d, y: %d\n", robot1.x, robot1.y);
     printf("Robot2 x: %d, y: %d\n", robot2.x, robot2.y);
@@ -411,10 +483,22 @@ int main( void )
             break;
 
         case 1:
-            // TODO: move towards robot 1
+            // gather at robot 1
+            int speedMmPerSecond = 0;
+            step2GatherAtRobot(&robot1Polar, &speedMmPerSecond);
+            Sleep(1000); // TODO: choose waiting time
+
+            // Move in line
+            step3MoveInLine(&robot1Polar, &robot2Polar, &self);
             break;
         case 2:
-            // TODO: move towards robot 2
+            // gather at robot 2
+            int speedMmPerSecond = 0;
+            step2GatherAtRobot(&robot2Polar, &speedMmPerSecond);
+            Sleep(1000); // TODO: choose waiting time
+
+            // Move in line
+            step3MoveInLine(&robot2Polar, &robot1Polar, &self);
             break;
         
         default:

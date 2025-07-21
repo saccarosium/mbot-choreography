@@ -480,6 +480,10 @@ int main( void )
     switch (robotIn120Degrees){
         case 0:
             // TODO: other robots should move towards me
+            Sleep(1000); // TODO: choose waiting time
+
+            // Move in line
+            step3MoveInLine(&self, &robot1Polar, &robot2Polar);
             break;
 
         case 1:

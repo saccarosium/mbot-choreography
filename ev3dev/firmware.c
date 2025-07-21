@@ -108,20 +108,17 @@ void initSensors(){
     if (!ev3_search_sensor(LEGO_EV3_US, &ultrasonic_sn, 0)) {
 		printf("Ultrasonic sensor should be on port in1, instead not found :(\n)");
         exit(1);
-	} else {
-		if (!ev3_search_sensor(LEGO_EV3_GYRO, &gyro_sn, 0)) {
-            printf("Gyro sensor should be on port in2, instead not found :(\n)");
-            exit(1);
-        } else {
-            printf("Found both ultrasonic (sn: %d) and gyro (sn: %d) sensors!\n", ultrasonic_sn, gyro_sn);
-            
-            // Continuous measurements for ultrasonic
-            set_sensor_mode(ultrasonic_sn, "US-DIST-CM");
+    } else if (!ev3_search_sensor(LEGO_EV3_GYRO, &gyro_sn, 0)) {
+        printf("Gyro sensor should be on port in2, instead not found :(\n)");
+        exit(1);
+    }
 
-            // Gyro mode to measure angles
-            set_sensor_mode(gyro_sn, "GYRO-ANG");
-        }
-	}
+    printf("Found both ultrasonic (sn: %d) and gyro (sn: %d) sensors!\n", ultrasonic_sn, gyro_sn);
+    // Continuous measurements for ultrasonic
+    set_sensor_mode(ultrasonic_sn, "US-DIST-CM");
+
+    // Gyro mode to measure angles
+    set_sensor_mode(gyro_sn, "GYRO-ANG");
 
     // Set the initial gyro angle so to ignore it in further measurements
     get_sensor_value(0, gyro_sn, &initialGyroDeg);
@@ -257,12 +254,9 @@ void step1DiscoverRobots(PolarPoint *robot1, PolarPoint *robot2){
             if(robotsFound == 0){
                 robot1->distanceMm = distance;
                 robot1->angleDeg = robotAngle;
-            }
-            else{
-                if(robotsFound == 1){
-                    robot2->distanceMm = distance;
-                    robot2->angleDeg = robotAngle;
-                }
+            } else if (robotsFound == 1) {
+                robot2->distanceMm = distance;
+                robot2->angleDeg = robotAngle;
             }
             
             robotsFound++;
@@ -292,11 +286,8 @@ void step1DiscoverRobots(PolarPoint *robot1, PolarPoint *robot2){
 void polarPointToPoint(PolarPoint *polarPoint, Point *point){
     double angleRadiant = polarPoint->angleDeg * M_PI / 180.0;
 
-    int x = (int)round(cos(angleRadiant) * polarPoint->distanceMm);
-    int y = (int)round(sin(angleRadiant) * polarPoint->distanceMm);
-
-    point->x = x;
-    point->y = y;
+    point->x = (int)round(cos(angleRadiant) * polarPoint->distanceMm);
+    point->y = (int)round(sin(angleRadiant) * polarPoint->distanceMm);
 }
 
 /**
@@ -357,22 +348,15 @@ int calcRobotIn120Angle(Point *r1, Point *r2){
 
     if(angleSelf >= 120){
         return 0;
-    }
-    else {
-        if(angleR1 >= 120){
-            return 1;
-        }
-        else{
-            if(angleR2 >= 120){
-                return 2;
-            }
-            else{
-                printf("No robot is in angle > 120 degrees :(\n");
-                // Probably motors are already stopped, but do anyway
-                stopMotors();
-                exit(1);
-            }
-        }
+    } else if (angleR1 >= 120) {
+        return 1;
+    } else if (angleR2 >= 120) {
+        return 2;
+    } else {
+        printf("No robot is in angle > 120 degrees :(\n");
+        // Probably motors are already stopped, but do anyway
+        stopMotors();
+        exit(1);
     }
 }
 
@@ -504,21 +488,24 @@ int main( void )
     // exit(1);
 
     // Identify other robots polar coordinates
-    PolarPoint robot1Polar, robot2Polar; // TODO: testing
+    // TODO(andrea): testing
+    PolarPoint robot1Polar = {
+        .angleDeg = 10,
+        .distanceMm = 100,
+    }
+
+    PolarPoint robot2Polar = {
+        .angleDeg = 150,
+        .distanceMm = 70,
+    }
     //step1DiscoverRobots(&robot1Polar, &robot2Polar);
-
-    robot1Polar.angleDeg = 10;
-    robot1Polar.distanceMm = 100;
-
-    robot2Polar.angleDeg = 150;
-    robot2Polar.distanceMm = 70;
 
     Point robot1, robot2;
     polarPointToPoint(&robot1Polar, &robot1);
     polarPointToPoint(&robot2Polar, &robot2);
     Point self = {
-        x: 0,
-        y: 0
+        .x = 0,
+        .y = 0,
     };
 
     printf("Robot1 x: %d, y: %d\n", robot1.x, robot1.y);

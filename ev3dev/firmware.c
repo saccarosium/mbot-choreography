@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <math.h>
 #include <stdlib.h>
-#include <time.h>
+#include <sys/time.h>
 #include "ev3.h"
 #include "ev3_port.h"
 #include "ev3_tacho.h"
@@ -375,18 +375,20 @@ void step2GatherAtRobot(PolarPoint *other, int *measuredSpeed){
     int intialDistance = getUsDistanceMm();
     int distance = intialDistance;
     
-    clock_t start = clock();
+    struct timeval startTime, endTime;
+    gettimeofday(&startTime, NULL);
 
     do{
         Sleep(10);
         distance = getUsDistanceMm();
     }
-    while(distance > gatheringStopDistanceMm);
+    while(distance > (gatheringStopDistanceMm * 2)); // Need to stop a bit before since sensor data is probably delayed
 
     if(measuredSpeed != NULL){
-        clock_t end = clock();
+        gettimeofday(&endTime, NULL);
 
-        double elapsedSeconds = (double)(end - start) / CLOCKS_PER_SEC;
+        double elapsedSeconds = (endTime.tv_sec - startTime.tv_sec) * 1.;
+        elapsedSeconds += (endTime.tv_usec - startTime.tv_usec) / 1000000.0;
 
         *measuredSpeed = (int)round((intialDistance - gatheringStopDistanceMm) / elapsedSeconds);
     }
@@ -453,11 +455,11 @@ void step3MoveInLine(Point *leaderCoord, Point *secondCoord, Point *thirdCoord, 
     rotateAtAngle(movementPolarOffset.angleDeg);
 
     int movementDistanceMm = 500;
-    int movementTimeSeconds = movementDistanceMm / speedMmPerSecond;
-    printf("Moving on line direction for %d ms\n", movementTimeSeconds * 1000);
+    double movementTimeMs = (movementDistanceMm / speedMmPerSecond) * 1000.0;
+    printf("Moving on line direction for %f ms\n", movementTimeMs);
     
     move(FORWARD);
-    Sleep(movementTimeSeconds * 1000);
+    Sleep(movementTimeMs);
     stopMotors();
 }
 
@@ -488,17 +490,7 @@ int main( void )
     // exit(1);
 
     // Identify other robots polar coordinates
-    // TODO(andrea): testing
-    PolarPoint robot1Polar = {
-        .angleDeg = 10,
-        .distanceMm = 100,
-    }
-
-    PolarPoint robot2Polar = {
-        .angleDeg = 150,
-        .distanceMm = 70,
-    }
-    //step1DiscoverRobots(&robot1Polar, &robot2Polar);
+    step1DiscoverRobots(&robot1Polar, &robot2Polar);
 
     Point robot1, robot2;
     polarPointToPoint(&robot1Polar, &robot1);

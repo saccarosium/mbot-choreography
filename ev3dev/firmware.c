@@ -490,6 +490,7 @@ int main( void )
     // exit(1);
 
     // Identify other robots polar coordinates
+    PolarPoint robot1Polar, robot2Polar;
     step1DiscoverRobots(&robot1Polar, &robot2Polar);
 
     Point robot1, robot2;

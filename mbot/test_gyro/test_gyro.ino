@@ -8,7 +8,7 @@
  *
  * Function List:
  * 1. void MeGyro::begin(void)
- * 2. void MeGyro::update(void) 
+ * 2. void MeGyro::update(void)
  * 3. double MeGyro::angleX(void)
  * 4. double MeGyro::angleY(void)
  * 5. double MeGyro::angleZ(void)
@@ -23,7 +23,6 @@
 #include "MeAuriga.h"
 #include <Wire.h>
 
-MeGyro gyro_ext(0,0x68);  //external gryo sensor
 MeGyro gyro(1,0x69);      //On Board external gryo sensor
 
 void setup()

@@ -121,30 +121,42 @@ void move(Direction direction)
     }
 }
 
-void searchRobot(Rotation rotation)
+void searchRobot(Rotation rotation, Robot &robot)
 {
     double initialDegree = getGyroDegrees();
     rotate(rotation);
-    busyWait(200);
+    // busyWait(200);
 
+    double distanceCm = 0.0;
     do {
         gyro.update();
+        distanceCm = sonic_sensor->distanceCm(); 
     } while (
-        sonic_sensor->distanceCm() >= VISION_DEPTH
-        && abs(initialDegree - getGyroDegrees()) > GYRO_THRESHOLD
+        distanceCm >= VISION_DEPTH
+        // && abs(initialDegree - getGyroDegrees()) > GYRO_THRESHOLD
     );
 
+    robot.distanceCm = distanceCm;
+    robot.angleDegrees = getGyroDegrees();
+
     stop();
+
+    return distanceCm;
 }
 
 void skipRobot(Rotation rotation)
 {
     rotate(rotation);
-    // TODO: handle when find no robot in 180 gradi
-    while (sonic_sensor->distanceCm() < VISION_DEPTH) {
+    int outOfRange = 5;
+    while (outOfRange > 0) {
         gyro.update();
+        busyWait(100);
+
+        if(sonic_sensor->distanceCm() < VISION_DEPTH){
+            outOfRange--;
+        }
     }
-    busyWait(100);
+
     stop();
 }
 
@@ -212,25 +224,26 @@ void step1DiscoverRobot(Robot& robot1, Robot& robot2)
     double angleRadiant = 0.0;
 
     Serial.println("Searching robot1");
-    searchRobot(TO_THE_RIGHT);
+    searchRobot(TO_THE_RIGHT, robot1);
     Serial.println("Fonud robot1");
-    robot1.distanceCm = sonic_sensor->distanceCm();
-    robot1.angleDegrees = getGyroDegrees();
+    // robot1.distanceCm = distance;
+    // robot1.angleDegrees = getGyroDegrees();
     angleRadiant = robot1.angleDegrees * M_PI / 180.0;
     robot1.x = round(cos(angleRadiant * robot1.distanceCm));
     robot1.y = round(sin(angleRadiant * robot1.distanceCm));
 
     busyWait(1000);
     Serial.println("SkipingRobot");
-    skipRobot(TO_THE_RIGHT);
+    //skipRobot(TO_THE_RIGHT);
+    rotateTo(robot1.angleDegrees + 180); // Rotate by other 30 degrees
     Serial.println("Skiped robot");
     busyWait(1000);
 
     Serial.println("Searching robot2");
-    searchRobot(TO_THE_RIGHT);
+    searchRobot(TO_THE_RIGHT, robot2);
     Serial.println("Found robot2");
-    robot2.distanceCm = sonic_sensor->distanceCm();
-    robot2.angleDegrees = getGyroDegrees();
+    // robot2.distanceCm = distance;
+    // robot2.angleDegrees = getGyroDegrees();
     angleRadiant = robot2.angleDegrees * M_PI / 180.0;
     robot2.x = round(cos(angleRadiant * robot2.distanceCm));
     robot2.y = round(sin(angleRadiant * robot2.distanceCm));
@@ -272,6 +285,16 @@ void loop()
     Robot robot1;
     Robot robot2;
     step1DiscoverRobot(robot1, robot2);
+
+    Serial.print("R1: deg ");
+    Serial.print(robot1.angleDegrees);
+    Serial.print(", cm: ");
+    Serial.println(robot1.distanceCm);
+
+    Serial.print("R2: deg ");
+    Serial.print(robot2.angleDegrees);
+    Serial.print(", cm: ");
+    Serial.println(robot2.distanceCm);
 
     switch (findLeader(robot1, robot2)) {
     case 0:

@@ -395,6 +395,32 @@ void step2GatherAtRobot(PolarPoint *other, int *measuredSpeed){
 }
 
 /**
+ * Used by non-leaders, assuming the leader is in front of them.
+ * Keeps measuring the distance until the leader moves away
+ */
+void step2WaitLeaderStartsMoving() {
+    int intialDistance = getUsDistanceMm();
+
+    // Since the ultrasonic sensor is not always reliable, the distance must be this number of consecutive times
+    // above the threshold so that the leader will be considered as moved away
+    int checkDistanceFor = 3;
+
+    do{
+        Sleep(10);
+        int distance = getUsDistanceMm();
+
+        // If the measured distance is more than a certain value, it means the leader has moved away
+        if(distance > (initialDistance * 2)){
+            checkDistanceFor--;
+        }
+        else{
+            checkDistanceFor = 3;
+        }
+    }
+    while(checkDistanceFor > 0);
+}
+
+/**
  * In case this robot is the one positioned at angle > 120 degrees, wait for the  other two robots to gather
  */
 void step2WaitForGathering(PolarPoint *r1, PolarPoint *r2){
@@ -433,7 +459,7 @@ void calcMidpoint(Point *p1, Point *p2, Point *midpoint){
  * and the other two robots, moves in the direction linking the position of the leader robot
  * and the middle point of the other two robots
  */
-void step3MoveInLine(Point *leaderCoord, Point *secondCoord, Point *thirdCoord, int speedMmPerSecond){
+void step3MoveInLine(Point *leaderCoord, Point *secondCoord, Point *thirdCoord, int speedMmPerSecond, bool isLeader){
     printf("Calculating line to move\n");
 
     Point midPoint;
@@ -454,12 +480,25 @@ void step3MoveInLine(Point *leaderCoord, Point *secondCoord, Point *thirdCoord, 
     // printf("From %d rotate at angle %d\n", getGyroDegrees(), movementPolarOffset.angleDeg);
     rotateAtAngle(movementPolarOffset.angleDeg);
 
-    int movementDistanceMm = 500;
+    int movementDistanceMm = 1000;
     double movementTimeMs = (movementDistanceMm / speedMmPerSecond) * 1000.0;
     printf("Moving on line direction for %f ms\n", movementTimeMs);
     
     move(FORWARD);
-    Sleep(movementTimeMs);
+
+    if(isLeader){
+        // The leader need to wait a few moments so the other robots can reach it
+        double msToWait = 1000; // TODO: Set correct waiting time
+        
+        stopMotors();
+        Sleep(msToWait);
+        move(FORWARD);
+        Sleep(movementTimeMs - msToWait);
+    }
+    else{
+        Sleep(movementTimeMs);
+    }
+
     stopMotors();
 }
 
@@ -513,27 +552,54 @@ int main( void )
         case 0:
             // other robots should move towards me
             step2WaitForGathering(&robot1Polar, &robot2Polar);
-            Sleep(1000); // TODO: choose waiting time
+            Sleep(1000); // This is just a delay between each phase
+
+            // Here, the three robots have gathered
 
             // Move in line
-            step3MoveInLine(&self, &robot1, &robot2, speedMmPerSecond); // TODO: unknown speed
+            step3MoveInLine(&self, &robot1, &robot2, speedMmPerSecond, true); // TODO: unknown speed
+
+            // Here, robots have moved in line and are currently stopped
+            Sleep(1000); // This is just a delay between each phase
+            step3MoveInLine(&self, &robot1, &robot2, speedMmPerSecond, false); // This time the leader should not wait anyone
+            
+            // Here, robots have moved in arrow formation and are still in this formation
+
             break;
 
         case 1:
             // gather at robot 1
             step2GatherAtRobot(&robot1Polar, &speedMmPerSecond);
-            Sleep(1000); // TODO: choose waiting time
+            step2WaitLeaderStartsMoving();
+
+            // Here, the three robots have gathered
 
             // Move in line
-            step3MoveInLine(&robot1, &robot2, &self, speedMmPerSecond);
+            step3MoveInLine(&robot1, &robot2, &self, speedMmPerSecond, false);
+
+            // Here, robots have moved in line and are currently stopped
+            Sleep(1000); // Wait so the leader can move forward and start the arrow formation
+            step3MoveInLine(&robot1, &robot2, &self, speedMmPerSecond, false);
+            
+            // Here, robots have moved in arrow formation and are still in this formation
+
             break;
         case 2:
             // gather at robot 2
             step2GatherAtRobot(&robot2Polar, &speedMmPerSecond);
-            Sleep(1000); // TODO: choose waiting time
+            step2WaitLeaderStartsMoving();
+
+            // Here, the three robots have gathered
 
             // Move in line
-            step3MoveInLine(&robot2, &robot1, &self, speedMmPerSecond);
+            step3MoveInLine(&robot2, &robot1, &self, speedMmPerSecond, false);
+
+            // Here, robots have moved in line and are currently stopped
+            Sleep(1000); // Wait so the leader can move forward and start the arrow formation
+            step3MoveInLine(&robot2, &robot1, &self, speedMmPerSecond, false);
+            
+            // Here, robots have moved in arrow formation and are still in this formation
+
             break;
         
         default:

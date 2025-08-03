@@ -489,7 +489,8 @@ void step3MoveInLine(Point *leaderCoord, Point *secondCoord, Point *thirdCoord, 
     if(isLeader){
         // The leader need to wait a few moments so the other robots can reach it
         double msToWait = 1000; // TODO: Set correct waiting time
-        
+        printf("Leader: waiting for %d ms to form the correct line", msToWait);
+
         stopMotors();
         Sleep(msToWait);
         move(FORWARD);
@@ -500,6 +501,35 @@ void step3MoveInLine(Point *leaderCoord, Point *secondCoord, Point *thirdCoord, 
     }
 
     stopMotors();
+}
+
+/**
+ * Used by the non-leaders to move away from the arrow formation 
+ */
+void step4MoveAway(PolarPoint *oldLeaderPosition, int speedMmPerSecond) {
+    // The old leader position is the position the leader was before the gathering
+    // So to move away, simply go to the opposite direction
+    PolarPoint destination = {
+        .angleDeg = oldLeaderPosition->angleDeg - 180,
+        .distanceMm = oldLeaderPosition->distanceMm
+    }
+
+    // Keep the angle in [0, 360] range
+    if(destination.angleDeg < 0){
+        destination.angleDeg += 360;
+    }
+    if(destination.angleDeg >= 360){
+        destination.angleDeg -= 360;
+    }
+
+    printf("Moving away from leader. Destination: angle %d, distanceMm %d", destination.angleDeg, destination.distanceMm);
+    rotateAtAngle(destination.angleDeg);
+
+    int movementDistanceMm = destination.distanceMm;
+    double movementTimeMs = (movementDistanceMm / speedMmPerSecond) * 1000.0;
+    
+    move(FORWARD);
+    Sleep(movementTimeMs);
 }
 
 // MAIN
@@ -548,67 +578,91 @@ int main( void )
     printf("Robot in 120 degrees is: %d\n", robotIn120Degrees);
     int speedMmPerSecond = 140; // Calculated manually
 
-    switch (robotIn120Degrees){
-        case 0:
-            // other robots should move towards me
-            step2WaitForGathering(&robot1Polar, &robot2Polar);
-            Sleep(1000); // This is just a delay between each phase
+    int choreographyIterations = 2;
 
-            // Here, the three robots have gathered
+    while(choreographyIterations > 0){
+        printf("Starting new choreography iteration");
+        choreographyIterations--;
 
-            // Move in line
-            step3MoveInLine(&self, &robot1, &robot2, speedMmPerSecond, true); // TODO: unknown speed
+        switch (robotIn120Degrees){
+            case 0:
+                // other robots should move towards me
+                step2WaitForGathering(&robot1Polar, &robot2Polar);
+                Sleep(1000); // This is just a delay between each phase
 
-            // Here, robots have moved in line and are currently stopped
-            Sleep(1000); // This is just a delay between each phase
-            step3MoveInLine(&self, &robot1, &robot2, speedMmPerSecond, false); // This time the leader should not wait anyone
+                // Here, the three robots have gathered
+                printf("Gathering completed!\n");
+
+                // Move in line
+                step3MoveInLine(&self, &robot1, &robot2, speedMmPerSecond, true); // TODO: unknown speed
+
+                // Here, robots have moved in line and are currently stopped
+                printf("Line formation completed!\n");
+
+                Sleep(1000); // Wait so the non-leaders can move forward and start the arrow formation
+                step3MoveInLine(&self, &robot1, &robot2, speedMmPerSecond, false); // This time the leader should not wait anyone
+                
+                // Here, robots have moved in arrow formation and are still in this formation
+                printf("Arrow formation completed!\n");
+
+                // The leader should wait for a long time to allow the other two robots to reposition
+                Sleep(15 * 1000);
+
+                break;
+
+            case 1:
+                // gather at robot 1
+                step2GatherAtRobot(&robot1Polar, &speedMmPerSecond);
+                
+                // Here, the three robots have gathered
+                printf("Gathering completed!\n");
+                
+                // Move in line
+                step2WaitLeaderStartsMoving();
+                step3MoveInLine(&robot1, &robot2, &self, speedMmPerSecond, false);
+
+                // Here, robots have moved in line and are currently stopped
+                printf("Line formation completed!\n");
+
+                step3MoveInLine(&robot1, &robot2, &self, speedMmPerSecond, false);
+                
+                // Here, robots have moved in arrow formation and are still in this formation
+                printf("Arrow formation completed!\n");
+                
+                // The non-leaders should reposition
+                step4MoveAway(&robot1);
+
+                break;
+            case 2:
+                // gather at robot 2
+                step2GatherAtRobot(&robot2Polar, &speedMmPerSecond);
+                
+                // Here, the three robots have gathered
+                printf("Gathering completed!\n");
+                
+                // Move in line
+                step2WaitLeaderStartsMoving();
+                step3MoveInLine(&robot2, &robot1, &self, speedMmPerSecond, false);
+
+                // Here, robots have moved in line and are currently stopped
+                printf("Line formation completed!\n");
+
+                step3MoveInLine(&robot2, &robot1, &self, speedMmPerSecond, false);
+                
+                // Here, robots have moved in arrow formation and are still in this formation
+                printf("Arrow formation completed!\n");
+                
+                // The non-leaders should reposition
+                step4MoveAway(&robot2);
+                break;
             
-            // Here, robots have moved in arrow formation and are still in this formation
-
-            break;
-
-        case 1:
-            // gather at robot 1
-            step2GatherAtRobot(&robot1Polar, &speedMmPerSecond);
-            step2WaitLeaderStartsMoving();
-
-            // Here, the three robots have gathered
-
-            // Move in line
-            step3MoveInLine(&robot1, &robot2, &self, speedMmPerSecond, false);
-
-            // Here, robots have moved in line and are currently stopped
-            Sleep(1000); // Wait so the leader can move forward and start the arrow formation
-            step3MoveInLine(&robot1, &robot2, &self, speedMmPerSecond, false);
-            
-            // Here, robots have moved in arrow formation and are still in this formation
-
-            break;
-        case 2:
-            // gather at robot 2
-            step2GatherAtRobot(&robot2Polar, &speedMmPerSecond);
-            step2WaitLeaderStartsMoving();
-
-            // Here, the three robots have gathered
-
-            // Move in line
-            step3MoveInLine(&robot2, &robot1, &self, speedMmPerSecond, false);
-
-            // Here, robots have moved in line and are currently stopped
-            Sleep(1000); // Wait so the leader can move forward and start the arrow formation
-            step3MoveInLine(&robot2, &robot1, &self, speedMmPerSecond, false);
-            
-            // Here, robots have moved in arrow formation and are still in this formation
-
-            break;
-        
-        default:
-            printf("This should never happen!\n");
-            stopMotors();
-            exit(1);
-            break;
+            default:
+                printf("This should never happen!\n");
+                stopMotors();
+                exit(1);
+                break;
+        }
     }
-
     ev3_uninit();
 	printf( "*** ( EV3 ) Bye! ***\n" );
 	return ( 0 );

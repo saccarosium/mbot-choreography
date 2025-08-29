@@ -559,8 +559,17 @@ int main( void )
     // exit(1);
 
     // Identify other robots polar coordinates
-    PolarPoint robot1Polar, robot2Polar;
-    step1DiscoverRobots(&robot1Polar, &robot2Polar);
+    //PolarPoint robot1Polar, robot2Polar;
+    //step1DiscoverRobots(&robot1Polar, &robot2Polar);
+    PolarPoint robot1Polar = {
+        .angleDeg = 10,
+        .distanceMm = 100,
+    };
+    
+    PolarPoint robot2Polar = {
+        .angleDeg = 150,
+        .distanceMm = 70,
+    };
 
     Point robot1, robot2;
     polarPointToPoint(&robot1Polar, &robot1);

@@ -7,11 +7,20 @@
     #include <math.h>
 #endif
 
+#if 1
+    #define Print(msg) Serial.print(msg);
+    #define Println(msg) Serial.println(msg);
+#else
+    #define Print(msg) (void*)0
+    #define Println(msg) (void*)0;
+#endif
+
 #define PWM 50
 #define VISION_DEPTH 100.0
 #define SAFETY_DISTANCE 5.0
 #define STOPPING_DISTANCE 60.0
 #define GYRO_THRESHOLD 1.5
+
 
 enum Direction {
     FORWARD,
@@ -30,25 +39,18 @@ struct Point {
 
 struct PolarPoint {
     double distanceCm;
-    double angleDegrees;
-};
-
-struct Robot {
-    int x;
-    int y;
-    double distanceCm;
-    double angleDegrees;
-    double speedCmPerSecond;
+    double angleDeg;
 };
 
 MeEncoderOnBoard RightMotor(SLOT1); // pwm < 0 va avanti
 MeEncoderOnBoard LeftMotor(SLOT2); // pwm > 0 va avanti
 MeGyro gyro(1, 0x69); // On Board external gryo sensor
 MeUltrasonicSensor* sonic_sensor = NULL;
-double initialGyroDegree = 0.0;
+double initialGyroDeg = 0.0;
 
-void busyWait(uint64_t ms)
-{
+double gatheringStopDistanceCm = 100.0f;
+
+void busyWait(uint64_t ms) {
     uint64_t startTime = millis();
 
     // Making sure it updates the gyro at least once
@@ -57,28 +59,7 @@ void busyWait(uint64_t ms)
     } while (millis() - startTime < ms);
 }
 
-double getGyroDegrees()
-{
-    gyro.update();
-    double val = gyro.getAngleZ() - initialGyroDegree;
-
-    if (val > 360)
-        val -= 360;
-
-    if (val < 0)
-        val += 360;
-
-    return val;
-}
-
-void stop()
-{
-    RightMotor.setMotorPwm(0);
-    LeftMotor.setMotorPwm(0);
-}
-
-void rotate(Rotation rotation)
-{
+void rotate(Rotation rotation) {
     switch (rotation) {
     case TO_THE_RIGHT:
         RightMotor.setMotorPwm(PWM);
@@ -91,8 +72,54 @@ void rotate(Rotation rotation)
     }
 }
 
-void rotateTo(double degree)
-{
+void stopMotors() {
+    RightMotor.setMotorPwm(0);
+    LeftMotor.setMotorPwm(0);
+}
+
+void move(Direction direction) {
+    switch (direction) {
+    case FORWARD:
+        RightMotor.setMotorPwm(-PWM);
+        LeftMotor.setMotorPwm(PWM);
+        while (sonic_sensor->distanceCm() >= SAFETY_DISTANCE) {}
+        stopMotors();
+        break;
+    case BACKWARD:
+        RightMotor.setMotorPwm(PWM);
+        LeftMotor.setMotorPwm(-PWM);
+        break;
+    }
+}
+
+double getUsDistanceCm() {
+    return sonic_sensor->distanceCm();
+}
+
+/**
+ * Returns the angle always in range [0, 360], where 0 is the initial
+ * orientation at the start of the program
+ */
+double getGyroDegrees() {
+    gyro.update();
+
+    // Subtract the initial offset of the gyro, so the measured angle
+    // will always be zero at the robot's initial orientation
+    double val = gyro.getAngleZ() - initialGyroDeg;
+
+    if (val > 360)
+        val -= 360;
+
+    if (val < 0)
+        val += 360;
+
+    return val;
+}
+
+/**
+ * Rotates at a specific angle. Input is assumed in range [0, 360]
+ */
+void rotateAtAngle(double degree) {
     if (degree > getGyroDegrees())
         rotate(TO_THE_RIGHT);
     else
@@ -102,70 +129,34 @@ void rotateTo(double degree)
         gyro.update();
     }
 
-    stop();
+    stopMotors();
 }
 
-void move(Direction direction)
-{
-    switch (direction) {
-    case FORWARD:
-        RightMotor.setMotorPwm(-PWM);
-        LeftMotor.setMotorPwm(PWM);
-        while (sonic_sensor->distanceCm() >= SAFETY_DISTANCE) {}
-        stop();
-        break;
-    case Direction::BACKWARD:
-        RightMotor.setMotorPwm(PWM);
-        LeftMotor.setMotorPwm(-PWM);
-        break;
-    }
+Point polarPointToPoint(const PolarPoint& polarPoint) {
+    double angleRadial = polarPoint.angleDeg * M_PI / 180.0;
+
+    return (Point){
+        .x = round(cos(angleRadial) * polarPoint.distanceCm),
+        .y = round(cos(angleRadial) * polarPoint.distanceCm),
+    };
 }
 
-void searchRobot(Rotation rotation, Robot &robot)
-{
-    double initialDegree = getGyroDegrees();
-    rotate(rotation);
-    // busyWait(200);
+PolarPoint pointToPolarPoint(const Point& point) {
+    double x = point.x;
+    double y = point.y;
 
-    double distanceCm = 0.0;
-    do {
-        gyro.update();
-        distanceCm = sonic_sensor->distanceCm(); 
-    } while (
-        distanceCm >= VISION_DEPTH
-        // && abs(initialDegree - getGyroDegrees()) > GYRO_THRESHOLD
-    );
-
-    robot.distanceCm = distanceCm;
-    robot.angleDegrees = getGyroDegrees();
-
-    stop();
-
-    return distanceCm;
+    return (PolarPoint){
+        .distanceCm = round(sqrt(x * x + y * y)),
+        .angleDeg = round(atan2(y, x) * 180.0 / M_PI),
+    };
 }
 
-void skipRobot(Rotation rotation)
-{
-    rotate(rotation);
-    int outOfRange = 5;
-    while (outOfRange > 0) {
-        gyro.update();
-        busyWait(100);
-
-        if(sonic_sensor->distanceCm() < VISION_DEPTH){
-            outOfRange--;
-        }
-    }
-
-    stop();
-}
 
 /**
  * Calculates the Euclidean distance between two points
  */
-double euclideanDistance(Robot& a, Robot& b)
-{
-    return sqrt((a.x - b.x)*(a.x - b.x) + (a.y - b.y)*(a.y - b.y));
+double euclideanDistance(Point& a, Point& b) {
+    return sqrt((a.x - b.x) * (a.x - b.x) + (a.y - b.y) * (a.y - b.y));
 }
 
 /**
@@ -176,10 +167,9 @@ double euclideanDistance(Robot& a, Robot& b)
  * 
  * This function returns the internal angle (in degrees) opposite to side a
  */
-double cosineLaw(double a, double b, double c)
-{
+double cosineLaw(double a, double b, double c) {
     // Multiply by 180*pi to convert into degrees
-    return acos((b*b + c*c - a*a) / (2 * b * c)) * (180 / M_PI);
+    return acos((b * b + c * c - a * a) / (2 * b * c)) * (180 / M_PI);
 }
 
 /**
@@ -189,9 +179,8 @@ double cosineLaw(double a, double b, double c)
  * - 1 -> r1
  * - 2 -> r2
  */
-int findLeader(Robot& robot1, Robot& robot2)
-{
-    Robot self = {
+int findLeader(Point& robot1, Point& robot2) {
+    Point self = {
         .x = 0,
         .y = 0,
     };
@@ -211,109 +200,271 @@ int findLeader(Robot& robot1, Robot& robot2)
     } else if (angleRobot2 >= 120) {
         return 2;
     } else {
-        Serial.println("No Robot is in angle > 120 degrees :(");
-        stop();
+        Println("No robot is in angle > 120 degrees :(");
+        stopMotors();
         return -1;
     }
 
 }
 
-void step1DiscoverRobot(Robot& robot1, Robot& robot2)
-{
-    Serial.println("Step1");
-    double angleRadiant = 0.0;
+/**
+ * Moves towards the robot on that polar coordinates, stopping at some distance from it.
+ * Additionally, calculates the average speed of the robot so that it can be used further.
+ * The speed is expressed in millimeters/sec
+ */
+void step2GatherAtRobot(PolarPoint& other, int& measuredSpeed) {
+    Println("Step2");
 
-    Serial.println("Searching robot1");
-    searchRobot(TO_THE_RIGHT, robot1);
-    Serial.println("Fonud robot1");
-    // robot1.distanceCm = distance;
-    // robot1.angleDegrees = getGyroDegrees();
-    angleRadiant = robot1.angleDegrees * M_PI / 180.0;
-    robot1.x = round(cos(angleRadiant * robot1.distanceCm));
-    robot1.y = round(sin(angleRadiant * robot1.distanceCm));
-
-    busyWait(1000);
-    Serial.println("SkipingRobot");
-    //skipRobot(TO_THE_RIGHT);
-    rotateTo(robot1.angleDegrees + 180); // Rotate by other 30 degrees
-    Serial.println("Skiped robot");
-    busyWait(1000);
-
-    Serial.println("Searching robot2");
-    searchRobot(TO_THE_RIGHT, robot2);
-    Serial.println("Found robot2");
-    // robot2.distanceCm = distance;
-    // robot2.angleDegrees = getGyroDegrees();
-    angleRadiant = robot2.angleDegrees * M_PI / 180.0;
-    robot2.x = round(cos(angleRadiant * robot2.distanceCm));
-    robot2.y = round(sin(angleRadiant * robot2.distanceCm));
-
-    Serial.println("Finished Step1");
-}
-
-void step2GatherToLeader(Robot& leader)
-{
-    Serial.println("Step2");
-
-    Serial.print("Rotating to: ");
-    Serial.println(leader.angleDegrees);
-    rotateTo(leader.angleDegrees);
+    rotateAtAngle(other.angleDeg);
 
     double initialDistance = sonic_sensor->distanceCm();
     uint64_t startTime = millis();
 
-    Serial.print("Moving bitches");
+    // Blocking until over SAFETY_DISTANCE
     move(FORWARD);
 
     uint64_t elapsedSeconds = startTime - millis();
-    leader.speedCmPerSecond = (initialDistance - SAFETY_DISTANCE) / elapsedSeconds;
+    measuredSpeed = round((initialDistance - gatheringStopDistanceCm) / elapsedSeconds);
 
-    Serial.println("Finished Step2");
+    Println("Finished Step2");
 }
 
-void setup()
+/**
+ * Used by non-leaders, assuming the leader is in front of them.
+ * Keeps measuring the distance until the leader moves away
+ */
+void step2WaitLeaderStartsMoving() {
+    double initialDistance = sonic_sensor->distanceCm();
+
+    // Since the ultrasonic sensor is not always reliable, the distance must
+    // be this number of consecutive times above the threshold so that the
+    // leader will be considered as moved away
+    int checkDistanceFor = 3;
+
+    do {
+        busyWait(10);
+        int distance = getUsDistanceCm();
+
+        // If the measured distance is more than a certain value, it means the
+        // leader has moved away
+        if (distance > (initialDistance * 2))
+            checkDistanceFor--;
+        else
+            checkDistanceFor = 3;
+
+    } while (checkDistanceFor > 0);
+}
+
+/**
+ * In case this robot is the one positioned at angle > 120 degrees, wait for
+ * the  other two robots to gather
+ */
+void step2WaitForGathering(PolarPoint& r1, PolarPoint& r2){
+    Println("Waiting for gathering of robot 1");
+
+    // Wait for robot 1
+    rotateAtAngle(r1.angleDeg);
+    int distance = 0;
+    
+    do {
+        busyWait(10);
+        distance = getUsDistanceCm();
+    } while (distance > SAFETY_DISTANCE);
+
+    Println("Waiting for gathering of robot 2");
+
+    // Wait for robot 2
+    rotateAtAngle(r2.angleDeg);
+    
+    do{
+        busyWait(10);
+        distance = getUsDistanceCm();
+    } while(distance > SAFETY_DISTANCE);
+}
+
+Point calcMidpoint(Point& p1, Point& p2)
 {
+    return (Point){
+        .x = (p1.x + p2.x) / 2,
+        .y = (p1.y + p2.y) / 2,
+    };
+}
+
+/**
+ * Given the leader robot and the other two robots, moves in the direction
+ * linking the position of the leader robot and the middle point of the other
+ * two robots
+ */
+void step3MoveInLine(Point& leaderCoord, Point& secondCoord, Point& thirdCoord, int speedMmPerSecond, bool isLeader){
+    Println("Calculating line to move");
+
+    Point midPoint = calcMidpoint(secondCoord, thirdCoord);
+
+    // Now, calculate the direction from the leader robot to the middle point
+    Point movementOffset = {
+        .x = midPoint.x - leaderCoord.x,
+        .y = midPoint.y - leaderCoord.y,
+    };
+    
+    PolarPoint movementPolarOffset = pointToPolarPoint(movementOffset);
+
+    // The robot needs to move in the direction specified by this polar point
+    rotateAtAngle(movementPolarOffset.angleDeg);
+
+    int movementDistanceMm = 1000;
+    double movementTimeMs = (movementDistanceMm / speedMmPerSecond) * 1000.0;
+    
+    move(FORWARD);
+
+    if (isLeader) {
+        // The leader need to wait a few moments so the other robots can reach it
+        double msToWait = 1000; // TODO: Set correct waiting time
+        stopMotors();
+        busyWait(msToWait);
+        move(FORWARD);
+        busyWait(movementTimeMs - msToWait);
+    } else {
+        busyWait(movementTimeMs);
+    }
+
+    stopMotors();
+}
+
+/**
+ * Used by the non-leaders to move away from the arrow formation 
+ */
+void step4MoveAway(PolarPoint& oldLeaderPosition, int speedMmPerSecond) {
+    // The old leader position is the position the leader was before the gathering
+    // So to move away, simply go to the opposite direction
+    PolarPoint destination;
+    destination.angleDeg = oldLeaderPosition.angleDeg - 180;
+    destination.distanceCm = oldLeaderPosition.distanceCm;
+
+    // Keep the angle in [0, 360] range
+    if(destination.angleDeg < 0)
+        destination.angleDeg += 360;
+
+    if(destination.angleDeg >= 360)
+        destination.angleDeg -= 360;
+
+    rotateAtAngle(destination.angleDeg);
+
+    int movementDistanceMm = destination.distanceCm;
+    double movementTimeMs = (movementDistanceMm / speedMmPerSecond) * 1000.0;
+    
+    move(FORWARD);
+    busyWait(movementTimeMs);
+}
+
+void setup() {
     // Initialize serial with bound rate of 9600
     Serial.begin(9600);
     gyro.begin();
     sonic_sensor = new MeUltrasonicSensor(10);
-    initialGyroDegree = getGyroDegrees();
+    initialGyroDeg = getGyroDegrees();
 }
 
-void loop()
-{
-    Robot robot1;
-    Robot robot2;
-    step1DiscoverRobot(robot1, robot2);
+void loop() {
+    PolarPoint robot1Polar;
+    robot1Polar.angleDeg = 17.7;
+    robot1Polar.distanceCm = 70;
 
-    Serial.print("R1: deg ");
-    Serial.print(robot1.angleDegrees);
-    Serial.print(", cm: ");
-    Serial.println(robot1.distanceCm);
+    PolarPoint robot2Polar;
+    robot2Polar.angleDeg = 150;
+    robot2Polar.distanceCm = 100;
 
-    Serial.print("R2: deg ");
-    Serial.print(robot2.angleDegrees);
-    Serial.print(", cm: ");
-    Serial.println(robot2.distanceCm);
+    Point robot1 = polarPointToPoint(robot1Polar);
+    Point robot2 = polarPointToPoint(robot2Polar);
 
-    switch (findLeader(robot1, robot2)) {
-    case 0:
-        Serial.println("So io il leader");
-        // TODO: implement case where I'm the leader
-        break;
-    case 1:
-        Serial.println("robot1 è il leader");
-        step2GatherToLeader(robot1);
-        break;
-    case 2:
-        Serial.println("robot2 è il leader");
-        step2GatherToLeader(robot2);
-        break;
-    default:
-        Serial.println("No leader found");
-        stop();
-        break;
+    Point self = { 
+        .x = 0, 
+        .y = 0,
+    };
+
+    int leader = findLeader(robot1, robot2);
+    int speedMmPerSecond = 140;
+
+    for (int iterations = 1; iterations > 0; --iterations) {
+        switch (leader){
+            case 0:
+                // other robots should move towards me
+                step2WaitForGathering(robot1Polar, robot2Polar);
+                busyWait(1000); // This is just a delay between each phase
+
+                // Here, the three robots have gathered
+                Println("Gathering completed!");
+
+                // Move in line
+                step3MoveInLine(self, robot1, robot2, speedMmPerSecond, true); // TODO: unknown speed
+
+                // Here, robots have moved in line and are currently stopped
+                Println("Line formation completed!");
+
+                busyWait(1000); // Wait so the non-leaders can move forward and start the arrow formation
+                step3MoveInLine(self, robot1, robot2, speedMmPerSecond, false); // This time the leader should not wait anyone
+                
+                // Here, robots have moved in arrow formation and are still in this formation
+                Println("Arrow formation completed!");
+
+                // The leader should wait for a long time to allow the other two robots to reposition
+                busyWait(15 * 1000);
+
+                break;
+
+            case 1:
+                // gather at robot 1
+                step2GatherAtRobot(robot1Polar, speedMmPerSecond);
+                
+                // Here, the three robots have gathered
+                Println("Gathering completed!");
+                
+                // Move in line
+                step2WaitLeaderStartsMoving();
+                step3MoveInLine(robot1, robot2, self, speedMmPerSecond, false);
+
+                // Here, robots have moved in line and are currently stopped
+                Println("Line formation completed!");
+
+                step3MoveInLine(robot1, robot2, self, speedMmPerSecond, false);
+                
+                // Here, robots have moved in arrow formation and are still in this formation
+                Println("Arrow formation completed!");
+                
+                // The non-leaders should reposition
+                step4MoveAway(robot1Polar, speedMmPerSecond);
+
+                break;
+            case 2:
+                // gather at robot 2
+                step2GatherAtRobot(robot2Polar, speedMmPerSecond);
+                
+                // Here, the three robots have gathered
+                Println("Gathering completed!");
+                
+                // Move in line
+                step2WaitLeaderStartsMoving();
+                step3MoveInLine(robot2, robot1, self, speedMmPerSecond, false);
+
+                // Here, robots have moved in line and are currently stopped
+                Println("Line formation completed!");
+
+                step3MoveInLine(robot2, robot1, self, speedMmPerSecond, false);
+                
+                // Here, robots have moved in arrow formation and are still in this formation
+                Println("Arrow formation completed!");
+                
+                // The non-leaders should reposition
+                step4MoveAway(robot2Polar, speedMmPerSecond);
+                break;
+            
+            default:
+                Println("This should never happen!");
+                stopMotors();
+                exit(1);
+                break;
+        }
     }
 
-    while (true) {}
+    // Stop the main loop to restart
+    while (true) {};
 }

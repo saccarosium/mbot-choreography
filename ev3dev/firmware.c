@@ -399,7 +399,7 @@ void step2GatherAtRobot(PolarPoint *other, int *measuredSpeed){
  * Keeps measuring the distance until the leader moves away
  */
 void step2WaitLeaderStartsMoving() {
-    int intialDistance = getUsDistanceMm();
+    int initialDistance = getUsDistanceMm();
 
     // Since the ultrasonic sensor is not always reliable, the distance must be this number of consecutive times
     // above the threshold so that the leader will be considered as moved away
@@ -512,7 +512,7 @@ void step4MoveAway(PolarPoint *oldLeaderPosition, int speedMmPerSecond) {
     PolarPoint destination = {
         .angleDeg = oldLeaderPosition->angleDeg - 180,
         .distanceMm = oldLeaderPosition->distanceMm
-    }
+    };
 
     // Keep the angle in [0, 360] range
     if(destination.angleDeg < 0){
@@ -590,7 +590,7 @@ int main( void )
     int choreographyIterations = 2;
 
     while(choreographyIterations > 0){
-        printf("Starting new choreography iteration");
+        printf("Starting new choreography iteration\n");
         choreographyIterations--;
 
         switch (robotIn120Degrees){
@@ -639,7 +639,7 @@ int main( void )
                 printf("Arrow formation completed!\n");
                 
                 // The non-leaders should reposition
-                step4MoveAway(&robot1);
+                step4MoveAway(&robot1Polar, speedMmPerSecond);
 
                 break;
             case 2:
@@ -662,7 +662,7 @@ int main( void )
                 printf("Arrow formation completed!\n");
                 
                 // The non-leaders should reposition
-                step4MoveAway(&robot2);
+                step4MoveAway(&robot2Polar, speedMmPerSecond);
                 break;
             
             default:

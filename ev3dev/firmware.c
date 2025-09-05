@@ -55,7 +55,7 @@ uint8_t ultrasonic_sn, gyro_sn;
 int motorsSpeed;
 int initialGyroDeg = 0;
 int rotationThresholdDegrees = 5;
-int gatheringStopDistanceMm = 100;
+int gatheringStopDistanceMm = 200;
 
 // Helper functions
 int min(int a, int b){
@@ -421,10 +421,34 @@ void step2WaitLeaderStartsMoving() {
 }
 
 /**
+ * Given two points, calculates the middle point between them
+ */
+void calcMidpoint(Point *p1, Point *p2, Point *midpoint){
+    midpoint->x = (p1->x + p2->x) / 2;
+    midpoint->y = (p1->y + p2->y) / 2;
+}
+
+/**
  * In case this robot is the one positioned at angle > 120 degrees, wait for the  other two robots to gather
  */
 void step2WaitForGathering(PolarPoint *r1, PolarPoint *r2){
     printf("Waiting for gathering of robot 1\n");
+
+    // To prevent ultrasonic sensors to interphere with each other,
+    // look somewhere else until the other robots reach me
+    Point robot1, robot2;
+    polarPointToPoint(r1, &robot1);
+    polarPointToPoint(r2, &robot2);
+    Point midPoint;
+    calcMidpoint(&robot1, &robot2, &midPoint);
+    
+    PolarPoint midPointPolar;
+    pointToPolarPoint(&midPoint, &midPointPolar);
+
+    rotateAtAngle(midPointPolar.angleDeg);
+
+    // Then, sleep for a long time
+    Sleep(20 * 1000);
 
     // Wait for robot 1
     rotateAtAngle(r1->angleDeg);
@@ -445,13 +469,6 @@ void step2WaitForGathering(PolarPoint *r1, PolarPoint *r2){
         distance = getUsDistanceMm();
     }
     while(distance > gatheringStopDistanceMm);
-}
-/**
- * Given two points, calculates the middle point between them
- */
-void calcMidpoint(Point *p1, Point *p2, Point *midpoint){
-    midpoint->x = (p1->x + p2->x) / 2;
-    midpoint->y = (p1->y + p2->y) / 2;
 }
 
 /**

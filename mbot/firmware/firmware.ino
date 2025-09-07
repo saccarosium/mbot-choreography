@@ -254,7 +254,7 @@ void step2WaitLeaderStartsMoving() {
   // Since the ultrasonic sensor is not always reliable, the distance must
   // be this number of consecutive times above the threshold so that the
   // leader will be considered as moved away
-  int checkDistanceFor = 3;
+  int checkDistanceFor = 50; // With 10 ms busy wait, means 500 ms total
 
   do {
     busyWait(10);
@@ -265,7 +265,7 @@ void step2WaitLeaderStartsMoving() {
     if (distance > (initialDistance * 2))
       checkDistanceFor--;
     else
-      checkDistanceFor = 3;
+      checkDistanceFor = 50;
 
   } while (checkDistanceFor > 0);
 }
@@ -304,6 +304,14 @@ Point calcMidpoint(Point& p1, Point& p2) {
   };
 }
 
+void moveForMm(int movementDistanceCm, int speedCmPerSecond){
+    double movementTimeMs = (movementDistanceCm / speedCmPerSecond) * 1000.0;
+
+    move(FORWARD);
+    busyWait(movementTimeMs);
+    stopMotors();
+}
+
 /**
  * Given the leader robot and the other two robots, moves in the direction
  * linking the position of the leader robot and the middle point of the other
@@ -325,26 +333,14 @@ void step3MoveInLine(Point& leaderCoord, Point& secondCoord, Point& thirdCoord, 
   // The robot needs to move in the direction specified by this polar point
   rotateAtAngle(movementPolarOffset.angleDeg);
 
-  double movementDistanceCm = 100.0;
-  double movementTimeMs = (movementDistanceCm / speedCmPerSecond) * 1000.0;
+  int lineFormationLengthCm = 100;
 
-  Print("movementTimeMs: ");
-  Println(movementTimeMs);
-
-  move(FORWARD);
-
-  if (isLeader) {
-    // The leader need to wait a few moments so the other robots can reach it
-    double msToWait = 1000;  // TODO: Set correct waiting time
-    stopMotors();
-    busyWait(msToWait);
-    move(FORWARD);
-    busyWait(movementTimeMs - msToWait);
-  } else {
-    busyWait(movementTimeMs);
+  if(isLeader){
+    // TODO: Unused here, copy other code
   }
-
-  stopMotors();
+  else{
+    moveForMm(lineFormationLengthCm, speedCmPerSecond);
+  }
 }
 
 /**

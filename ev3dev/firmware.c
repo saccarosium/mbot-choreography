@@ -403,7 +403,7 @@ void step2WaitLeaderStartsMoving() {
 
     // Since the ultrasonic sensor is not always reliable, the distance must be this number of consecutive times
     // above the threshold so that the leader will be considered as moved away
-    int checkDistanceFor = 3;
+    int checkDistanceFor = 50; // With 10 ms busy wait, means 500 ms total
 
     do{
         Sleep(10);
@@ -414,7 +414,7 @@ void step2WaitLeaderStartsMoving() {
             checkDistanceFor--;
         }
         else{
-            checkDistanceFor = 3;
+            checkDistanceFor = 50;
         }
     }
     while(checkDistanceFor > 0);
@@ -471,6 +471,17 @@ void step2WaitForGathering(PolarPoint *r1, PolarPoint *r2){
     while(distance > gatheringStopDistanceMm);
 }
 
+
+void moveForMm(int movementDistanceMm, int speedMmPerSecond){
+    double movementTimeMs = (movementDistanceMm / speedMmPerSecond) * 1000.0;
+
+    printf("Moving for %d millimeters, or %d seconds\n", movementDistanceMm, movementTimeMs);
+
+    move(FORWARD);
+    Sleep(movementTimeMs);
+    stopMotors();
+}
+
 /**
  * Given the leader robot
  * and the other two robots, moves in the direction linking the position of the leader robot
@@ -497,30 +508,19 @@ void step3MoveInLine(Point *leaderCoord, Point *secondCoord, Point *thirdCoord, 
     // printf("From %d rotate at angle %d\n", getGyroDegrees(), movementPolarOffset.angleDeg);
     rotateAtAngle(movementPolarOffset.angleDeg);
 
-    int movementDistanceMm = 1000;
-    double movementTimeMs = (movementDistanceMm / speedMmPerSecond) * 1000.0;
-    printf("Moving on line direction for %f ms\n", movementTimeMs);
-    
-    move(FORWARD);
+    int lineFormationLengthMm = 1000;
 
     if(isLeader){
-        // Move away just to start the other non-leaders, then wait
-        //Sleep(1000); // TODO: correct time
+        int movingAwayMm = 250; // TODO:
+        moveForMm(movingAwayMm, speedMmPerSecond);
 
-        // The leader needs to wait a few moments so the other robots can reach it
-        double msToWait = 3000; // TODO: Set correct waiting time
-        printf("Leader: waiting for %d ms to form the correct line", msToWait);
-
-        stopMotors();
-        Sleep(msToWait);
-        move(FORWARD);
-        Sleep(movementTimeMs - msToWait);
+        Sleep(2500); // TODO:
+        moveForMm(lineFormationLengthMm - movingAwayMm, speedMmPerSecond);
     }
     else{
-        Sleep(movementTimeMs);
+        // Non leaders should just move
+        moveForMm(lineFormationLengthMm, speedMmPerSecond);
     }
-
-    stopMotors();
 }
 
 /**

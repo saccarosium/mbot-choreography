@@ -54,8 +54,8 @@ uint8_t ultrasonic_sn, gyro_sn;
 
 int motorsSpeed;
 int initialGyroDeg = 0;
-int rotationThresholdDegrees = 5;
-int gatheringStopDistanceMm = 200;
+int rotationThresholdDegrees = 3;
+int gatheringStopDistanceMm = 300;
 
 // Helper functions
 int min(int a, int b){
@@ -448,7 +448,7 @@ void step2WaitForGathering(PolarPoint *r1, PolarPoint *r2){
     rotateAtAngle(midPointPolar.angleDeg);
 
     // Then, sleep for a long time
-    Sleep(10 * 1000);
+    Sleep(15 * 1000);
 
     // Wait for robot 1
     rotateAtAngle(r1->angleDeg);
@@ -605,7 +605,7 @@ int main( void )
     // Calculate which robot is in 120 degrees angle
     int robotIn120Degrees = calcRobotIn120Angle(&robot1, &robot2);
     printf("Robot in 120 degrees is: %d\n", robotIn120Degrees);
-    int speedMmPerSecond = 140; // Calculated manually
+    int speedMmPerSecond = 100; // Calculated manually
 
     int choreographyIterations = 2;
 
@@ -627,6 +627,8 @@ int main( void )
 
                 // Here, robots have moved in line and are currently stopped
                 printf("Line formation completed!\n");
+
+                Sleep(10 * 1000); // TODO: Testing delay
 
                 Sleep(1000); // Wait so the non-leaders can move forward and start the arrow formation
                 step3MoveInLine(&self, &robot1, &robot2, speedMmPerSecond, false); // This time the leader should not wait anyone
@@ -653,6 +655,8 @@ int main( void )
                 // Here, robots have moved in line and are currently stopped
                 printf("Line formation completed!\n");
 
+                Sleep(10 * 1000); // TODO: Testing delay
+
                 step3MoveInLine(&robot1, &robot2, &self, speedMmPerSecond, false);
                 
                 // Here, robots have moved in arrow formation and are still in this formation
@@ -675,6 +679,8 @@ int main( void )
 
                 // Here, robots have moved in line and are currently stopped
                 printf("Line formation completed!\n");
+
+                Sleep(10 * 1000); // TODO: Testing delay
 
                 step3MoveInLine(&robot2, &robot1, &self, speedMmPerSecond, false);
                 

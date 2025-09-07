@@ -16,8 +16,8 @@
 #endif
 
 #define PWM 50
-#define GATHERING_STOP_DISTANCE_CM 20.0
-#define GYRO_THRESHOLD 1.0
+#define GATHERING_STOP_DISTANCE_CM 30.0
+#define GYRO_THRESHOLD 5.0 // Too low causes too much rotation
 
 
 enum Direction {
@@ -420,6 +420,8 @@ void loop() {
 
         // Here, robots have moved in line and are currently stopped
         Println("Line formation completed!");
+
+        busyWait(10 * 1000); // TODO: Testing delay
 
         busyWait(1000);                                                  // Wait so the non-leaders can move forward and start the arrow formation
         step3MoveInLine(self, robot1, robot2, speedCmPerSecond, false);  // This time the leader should not wait anyone

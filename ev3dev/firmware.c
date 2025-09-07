@@ -523,10 +523,15 @@ void step3MoveInLine(Point *leaderCoord, Point *secondCoord, Point *thirdCoord, 
     }
 }
 
+void step4MoveInArrow(int speedMmPerSecond){
+    int lineFormationLengthMm = 1000;
+    moveForMm(lineFormationLengthMm, speedMmPerSecond);
+}
+
 /**
  * Used by the non-leaders to move away from the arrow formation 
  */
-void step4MoveAway(PolarPoint *oldLeaderPosition, int speedMmPerSecond) {
+void step5MoveAway(PolarPoint *oldLeaderPosition, int speedMmPerSecond) {
     // The old leader position is the position the leader was before the gathering
     // So to move away, simply go to the opposite direction
     PolarPoint destination = {
@@ -630,10 +635,11 @@ int main( void )
                 // Here, robots have moved in line and are currently stopped
                 printf("Line formation completed!\n");
 
-                Sleep(10 * 1000); // TODO: Testing delay
+                // The leader should wait a bit less since it has already waited the other two
+                Sleep(10 * 1000 - 2500); // TODO: Testing delay
 
-                Sleep(1000); // Wait so the non-leaders can move forward and start the arrow formation
-                step3MoveInLine(&self, &robot1, &robot2, speedMmPerSecond, false); // This time the leader should not wait anyone
+
+                step4MoveInArrow(speedMmPerSecond);
                 
                 // Here, robots have moved in arrow formation and are still in this formation
                 printf("Arrow formation completed!\n");
@@ -659,13 +665,13 @@ int main( void )
 
                 Sleep(10 * 1000); // TODO: Testing delay
 
-                step3MoveInLine(&robot1, &robot2, &self, speedMmPerSecond, false);
+                step4MoveInArrow(speedMmPerSecond);
                 
                 // Here, robots have moved in arrow formation and are still in this formation
                 printf("Arrow formation completed!\n");
                 
                 // The non-leaders should reposition
-                step4MoveAway(&robot1Polar, speedMmPerSecond);
+                step5MoveAway(&robot1Polar, speedMmPerSecond);
 
                 break;
             case 2:
@@ -684,13 +690,13 @@ int main( void )
 
                 Sleep(10 * 1000); // TODO: Testing delay
 
-                step3MoveInLine(&robot2, &robot1, &self, speedMmPerSecond, false);
+                step4MoveInArrow(speedMmPerSecond);
                 
                 // Here, robots have moved in arrow formation and are still in this formation
                 printf("Arrow formation completed!\n");
                 
                 // The non-leaders should reposition
-                step4MoveAway(&robot2Polar, speedMmPerSecond);
+                step5MoveAway(&robot2Polar, speedMmPerSecond);
                 break;
             
             default:

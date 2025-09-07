@@ -304,7 +304,7 @@ Point calcMidpoint(Point& p1, Point& p2) {
   };
 }
 
-void moveForMm(int movementDistanceCm, int speedCmPerSecond){
+void moveForCm(int movementDistanceCm, int speedCmPerSecond){
     double movementTimeMs = (movementDistanceCm / speedCmPerSecond) * 1000.0;
 
     move(FORWARD);
@@ -339,14 +339,20 @@ void step3MoveInLine(Point& leaderCoord, Point& secondCoord, Point& thirdCoord, 
     // TODO: Unused here, copy other code
   }
   else{
-    moveForMm(lineFormationLengthCm, speedCmPerSecond);
+    moveForCm(lineFormationLengthCm, speedCmPerSecond);
   }
+}
+
+void step4MoveInArrow(double speedCmPerSecond){
+  int arrowFormationLengthCm = 100;
+
+  moveForCm(arrowFormationLengthCm, speedCmPerSecond);
 }
 
 /**
  * Used by the non-leaders to move away from the arrow formation 
  */
-void step4MoveAway(PolarPoint& oldLeaderPosition, double speedCmPerSecond) {
+void step5MoveAway(PolarPoint& oldLeaderPosition, double speedCmPerSecond) {
   // The old leader position is the position the leader was before the gathering
   // So to move away, simply go to the opposite direction
   PolarPoint destination;
@@ -419,8 +425,7 @@ void loop() {
 
         busyWait(10 * 1000); // TODO: Testing delay
 
-        busyWait(1000);                                                  // Wait so the non-leaders can move forward and start the arrow formation
-        step3MoveInLine(self, robot1, robot2, speedCmPerSecond, false);  // This time the leader should not wait anyone
+        step4MoveInArrow(speedCmPerSecond);
 
         // Here, robots have moved in arrow formation and are still in this formation
         Println("Arrow formation completed!");
@@ -446,13 +451,13 @@ void loop() {
 
         busyWait(10 * 1000); // TODO: Testing delay
 
-        step3MoveInLine(robot1, robot2, self, speedCmPerSecond, false);
+        step4MoveInArrow(speedCmPerSecond);
 
         // Here, robots have moved in arrow formation and are still in this formation
         Println("Arrow formation completed!");
 
         // The non-leaders should reposition
-        step4MoveAway(robot1Polar, speedCmPerSecond);
+        step5MoveAway(robot1Polar, speedCmPerSecond);
 
         break;
       case 2:
@@ -471,13 +476,13 @@ void loop() {
         
         busyWait(10 * 1000); // TODO: Testing delay
 
-        step3MoveInLine(robot2, robot1, self, speedCmPerSecond, false);
+        step4MoveInArrow(speedCmPerSecond);
 
         // Here, robots have moved in arrow formation and are still in this formation
         Println("Arrow formation completed!");
 
         // The non-leaders should reposition
-        step4MoveAway(robot2Polar, speedCmPerSecond);
+        step5MoveAway(robot2Polar, speedCmPerSecond);
         break;
 
       default:

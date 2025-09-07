@@ -605,7 +605,9 @@ int main( void )
     // Calculate which robot is in 120 degrees angle
     int robotIn120Degrees = calcRobotIn120Angle(&robot1, &robot2);
     printf("Robot in 120 degrees is: %d\n", robotIn120Degrees);
-    int speedMmPerSecond = 100; // Calculated manually
+
+    // MINDSTORM Batteries: 7.53 -> speed is 120
+    int speedMmPerSecond = 120; // Calculated manually
 
     int choreographyIterations = 2;
 

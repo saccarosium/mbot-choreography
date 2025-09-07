@@ -372,8 +372,8 @@ void step2GatherAtRobot(PolarPoint *other, int *measuredSpeed){
     // Move forward until a certain distance
     move(FORWARD);
 
-    int intialDistance = getUsDistanceMm();
-    int distance = intialDistance;
+    int initialDistance = other->distanceMm;
+    int distance = initialDistance;
     
     struct timeval startTime, endTime;
     gettimeofday(&startTime, NULL);
@@ -390,7 +390,7 @@ void step2GatherAtRobot(PolarPoint *other, int *measuredSpeed){
         double elapsedSeconds = (endTime.tv_sec - startTime.tv_sec) * 1.;
         elapsedSeconds += (endTime.tv_usec - startTime.tv_usec) / 1000000.0;
 
-        *measuredSpeed = (int)round((intialDistance - gatheringStopDistanceMm) / elapsedSeconds);
+        *measuredSpeed = (int)round((initialDistance - gatheringStopDistanceMm) / elapsedSeconds);
     }
 }
 
@@ -583,12 +583,12 @@ int main( void )
     //step1DiscoverRobots(&robot1Polar, &robot2Polar);
     PolarPoint robot1Polar = {
         .angleDeg = 10,
-        .distanceMm = 100,
+        .distanceMm = 1000,
     };
     
     PolarPoint robot2Polar = {
         .angleDeg = 150,
-        .distanceMm = 70,
+        .distanceMm = 700,
     };
 
     Point robot1, robot2;

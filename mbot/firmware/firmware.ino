@@ -16,10 +16,8 @@
 #endif
 
 #define PWM 50
-#define VISION_DEPTH 100.0
-#define GATHERING_STOP_DISTANCE 20.0
-#define STOPPING_DISTANCE 60.0
-#define GYRO_THRESHOLD 5.0
+#define GATHERING_STOP_DISTANCE_CM 20.0
+#define GYRO_THRESHOLD 1.0
 
 
 enum Direction {
@@ -82,8 +80,6 @@ void move(Direction direction) {
     case FORWARD:
       RightMotor.setMotorPwm(-PWM);
       LeftMotor.setMotorPwm(PWM);
-      while (sonic_sensor->distanceCm() >= GATHERING_STOP_DISTANCE) {}
-      stopMotors();
       break;
     case BACKWARD:
       RightMotor.setMotorPwm(PWM);
@@ -212,21 +208,38 @@ int findLeader(Point& robot1, Point& robot2) {
 /**
  * Moves towards the robot on that polar coordinates, stopping at some distance from it.
  * Additionally, calculates the average speed of the robot so that it can be used further.
- * The speed is expressed in millimeters/sec
+ * The speed is expressed in centimeters/sec
  */
-void step2GatherAtRobot(PolarPoint& other, int& measuredSpeed) {
+void step2GatherAtRobot(PolarPoint& other, double& measuredSpeedCmPerSecond) {
   Println("Step2");
 
   rotateAtAngle(other.angleDeg);
 
-  double initialDistance = sonic_sensor->distanceCm();
-  uint64_t startTime = millis();
+  double initialDistance = other.distanceCm;
+  unsigned long startTime = millis();
 
-  // Blocking until over SAFETY_DISTANCE
+  Print("startTime: ");
+  Println(startTime);
+
   move(FORWARD);
+  
+  // Blocking until over SAFETY_DISTANCE
+  while (sonic_sensor->distanceCm() >= GATHERING_STOP_DISTANCE_CM) {}
+  stopMotors();
 
-  uint64_t elapsedSeconds = startTime - millis();
-  measuredSpeed = round((initialDistance - gatheringStopDistanceCm) / elapsedSeconds);
+  unsigned long endTime = millis();
+  Print("endTime: ");
+  Println(endTime);
+
+  double elapsedSeconds = (endTime - startTime) / 1000.0;
+
+  Print("elapsedSeconds: ");
+  Println(elapsedSeconds);
+
+  measuredSpeedCmPerSecond = (initialDistance - GATHERING_STOP_DISTANCE_CM) / elapsedSeconds;
+
+  Print("measuredSpeedCmPerSecond: ");
+  Println(measuredSpeedCmPerSecond);
 
   Println("Finished Step2");
 }
@@ -271,7 +284,7 @@ void step2WaitForGathering(PolarPoint& r1, PolarPoint& r2) {
   do {
     busyWait(10);
     distance = getUsDistanceCm();
-  } while (distance > GATHERING_STOP_DISTANCE);
+  } while (distance > GATHERING_STOP_DISTANCE_CM);
 
   Println("Waiting for gathering of robot 2");
 
@@ -281,7 +294,7 @@ void step2WaitForGathering(PolarPoint& r1, PolarPoint& r2) {
   do {
     busyWait(10);
     distance = getUsDistanceCm();
-  } while (distance > GATHERING_STOP_DISTANCE);
+  } while (distance > GATHERING_STOP_DISTANCE_CM);
 }
 
 Point calcMidpoint(Point& p1, Point& p2) {
@@ -296,7 +309,7 @@ Point calcMidpoint(Point& p1, Point& p2) {
  * linking the position of the leader robot and the middle point of the other
  * two robots
  */
-void step3MoveInLine(Point& leaderCoord, Point& secondCoord, Point& thirdCoord, int speedMmPerSecond, bool isLeader) {
+void step3MoveInLine(Point& leaderCoord, Point& secondCoord, Point& thirdCoord, double speedCmPerSecond, bool isLeader) {
   Println("Calculating line to move");
 
   Point midPoint = calcMidpoint(secondCoord, thirdCoord);
@@ -312,8 +325,11 @@ void step3MoveInLine(Point& leaderCoord, Point& secondCoord, Point& thirdCoord, 
   // The robot needs to move in the direction specified by this polar point
   rotateAtAngle(movementPolarOffset.angleDeg);
 
-  int movementDistanceMm = 1000;
-  double movementTimeMs = (movementDistanceMm / speedMmPerSecond) * 1000.0;
+  double movementDistanceCm = 100.0;
+  double movementTimeMs = (movementDistanceCm / speedCmPerSecond) * 1000.0;
+
+  Print("movementTimeMs: ");
+  Println(movementTimeMs);
 
   move(FORWARD);
 
@@ -334,7 +350,7 @@ void step3MoveInLine(Point& leaderCoord, Point& secondCoord, Point& thirdCoord, 
 /**
  * Used by the non-leaders to move away from the arrow formation 
  */
-void step4MoveAway(PolarPoint& oldLeaderPosition, int speedMmPerSecond) {
+void step4MoveAway(PolarPoint& oldLeaderPosition, double speedCmPerSecond) {
   // The old leader position is the position the leader was before the gathering
   // So to move away, simply go to the opposite direction
   PolarPoint destination;
@@ -350,8 +366,8 @@ void step4MoveAway(PolarPoint& oldLeaderPosition, int speedMmPerSecond) {
 
   rotateAtAngle(destination.angleDeg);
 
-  int movementDistanceMm = destination.distanceCm;
-  double movementTimeMs = (movementDistanceMm / speedMmPerSecond) * 1000.0;
+  double movementDistanceCm = destination.distanceCm;
+  double movementTimeMs = (movementDistanceCm / speedCmPerSecond) * 1000.0;
 
   move(FORWARD);
   busyWait(movementTimeMs);
@@ -387,7 +403,7 @@ void loop() {
   };
 
   int leader = findLeader(robot1, robot2);
-  int speedMmPerSecond = 140;
+  double speedCmPerSecond = 14.0;
 
   for (int iterations = 1; iterations > 0; --iterations) {
     switch (leader) {
@@ -400,13 +416,13 @@ void loop() {
         Println("Gathering completed!");
 
         // Move in line
-        step3MoveInLine(self, robot1, robot2, speedMmPerSecond, true);  // TODO: unknown speed
+        step3MoveInLine(self, robot1, robot2, speedCmPerSecond, true);  // TODO: unknown speed
 
         // Here, robots have moved in line and are currently stopped
         Println("Line formation completed!");
 
         busyWait(1000);                                                  // Wait so the non-leaders can move forward and start the arrow formation
-        step3MoveInLine(self, robot1, robot2, speedMmPerSecond, false);  // This time the leader should not wait anyone
+        step3MoveInLine(self, robot1, robot2, speedCmPerSecond, false);  // This time the leader should not wait anyone
 
         // Here, robots have moved in arrow formation and are still in this formation
         Println("Arrow formation completed!");
@@ -418,48 +434,52 @@ void loop() {
 
       case 1:
         // gather at robot 1
-        step2GatherAtRobot(robot1Polar, speedMmPerSecond);
+        step2GatherAtRobot(robot1Polar, speedCmPerSecond);
 
         // Here, the three robots have gathered
         Println("Gathering completed!");
 
         // Move in line
         step2WaitLeaderStartsMoving();
-        step3MoveInLine(robot1, robot2, self, speedMmPerSecond, false);
+        step3MoveInLine(robot1, robot2, self, speedCmPerSecond, false);
 
         // Here, robots have moved in line and are currently stopped
         Println("Line formation completed!");
 
-        step3MoveInLine(robot1, robot2, self, speedMmPerSecond, false);
+        busyWait(10 * 1000); // TODO: Testing delay
+
+        step3MoveInLine(robot1, robot2, self, speedCmPerSecond, false);
 
         // Here, robots have moved in arrow formation and are still in this formation
         Println("Arrow formation completed!");
 
         // The non-leaders should reposition
-        step4MoveAway(robot1Polar, speedMmPerSecond);
+        step4MoveAway(robot1Polar, speedCmPerSecond);
 
         break;
       case 2:
         // gather at robot 2
-        step2GatherAtRobot(robot2Polar, speedMmPerSecond);
+        step2GatherAtRobot(robot2Polar, speedCmPerSecond);
 
         // Here, the three robots have gathered
         Println("Gathering completed!");
 
         // Move in line
         step2WaitLeaderStartsMoving();
-        step3MoveInLine(robot2, robot1, self, speedMmPerSecond, false);
+        step3MoveInLine(robot2, robot1, self, speedCmPerSecond, false);
 
         // Here, robots have moved in line and are currently stopped
         Println("Line formation completed!");
+        
+        busyWait(10 * 1000); // TODO: Testing delay
 
-        step3MoveInLine(robot2, robot1, self, speedMmPerSecond, false);
+        step3MoveInLine(robot2, robot1, self, speedCmPerSecond, false);
 
         // Here, robots have moved in arrow formation and are still in this formation
         Println("Arrow formation completed!");
 
         // The non-leaders should reposition
-        step4MoveAway(robot2Polar, speedMmPerSecond);
+        step4MoveAway(robot2Polar, speedCmPerSecond);
         break;
 
       default:

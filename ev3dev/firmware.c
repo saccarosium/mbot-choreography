@@ -517,10 +517,12 @@ void step3MoveInLine(Point *leaderCoord, Point *secondCoord, Point *thirdCoord, 
     int lineFormationLengthMm = 1000;
 
     if(isLeader){
-        int movingAwayMm = 250; // TODO:
+        // The leader should move away just a bit so the non-leaders can detect it has moved away
+        int movingAwayMm = 250;
         moveForMm(movingAwayMm, speedMmPerSecond, true);
 
-        Sleep(2000); // TODO:
+        // Then it waits for them and proceeds in line
+        Sleep(2000);
         moveForMm(lineFormationLengthMm, speedMmPerSecond, true);
     }
     else{
@@ -529,6 +531,9 @@ void step3MoveInLine(Point *leaderCoord, Point *secondCoord, Point *thirdCoord, 
     }
 }
 
+/**
+ * Used by all the robots to move in the arrow formation
+ */
 void step4MoveInArrow(int speedMmPerSecond){
     int lineFormationLengthMm = 1000;
     moveForMm(lineFormationLengthMm, speedMmPerSecond, true);
@@ -618,7 +623,7 @@ int main( void )
     int robotIn120Degrees = calcRobotIn120Angle(&robot1, &robot2);
     printf("Robot in 120 degrees is: %d\n", robotIn120Degrees);
 
-    // MINDSTORM Batteries: 7.53 -> speed is 120
+    // TODO: When MINDSTORM have batteries at 7.53, speed is 120
     int speedMmPerSecond = 120; // Calculated manually
 
     int choreographyIterations = 2;
@@ -637,7 +642,7 @@ int main( void )
                 printf("Gathering completed!\n");
 
                 // Move in line
-                step3MoveInLine(&self, &robot1, &robot2, speedMmPerSecond, true); // TODO: unknown speed
+                step3MoveInLine(&self, &robot1, &robot2, speedMmPerSecond, true);
 
                 // Here, robots have moved in line and are currently stopped
                 printf("Line formation completed!\n");

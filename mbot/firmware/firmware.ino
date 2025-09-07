@@ -336,13 +336,23 @@ void step3MoveInLine(Point& leaderCoord, Point& secondCoord, Point& thirdCoord, 
   int lineFormationLengthCm = 100;
 
   if(isLeader){
-    // TODO: Unused here, copy other code
+    // The leader should move away just a bit so the non-leaders can detect it has moved away
+    int movingAwayCm = 25;
+    moveForCm(movingAwayCm, speedCmPerSecond, true);
+
+    // Then it waits for them and proceeds in line
+    busyWait(2000);
+    moveForCm(lineFormationLengthCm, speedCmPerSecond, true);
   }
   else{
+    // Non leaders should just move
     moveForCm(lineFormationLengthCm, speedCmPerSecond);
   }
 }
 
+/**
+ * Used by all the robots to move in the arrow formation
+ */
 void step4MoveInArrow(double speedCmPerSecond){
   int arrowFormationLengthCm = 100;
 
@@ -422,7 +432,7 @@ void loop() {
         Println("Gathering completed!");
 
         // Move in line
-        step3MoveInLine(self, robot1, robot2, speedCmPerSecond, true);  // TODO: unknown speed
+        step3MoveInLine(self, robot1, robot2, speedCmPerSecond, true);
 
         // Here, robots have moved in line and are currently stopped
         Println("Line formation completed!");

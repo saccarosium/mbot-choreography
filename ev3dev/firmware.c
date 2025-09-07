@@ -448,7 +448,7 @@ void step2WaitForGathering(PolarPoint *r1, PolarPoint *r2){
     rotateAtAngle(midPointPolar.angleDeg);
 
     // Then, sleep for a long time
-    Sleep(20 * 1000);
+    Sleep(10 * 1000);
 
     // Wait for robot 1
     rotateAtAngle(r1->angleDeg);
@@ -504,8 +504,11 @@ void step3MoveInLine(Point *leaderCoord, Point *secondCoord, Point *thirdCoord, 
     move(FORWARD);
 
     if(isLeader){
-        // The leader need to wait a few moments so the other robots can reach it
-        double msToWait = 1000; // TODO: Set correct waiting time
+        // Move away just to start the other non-leaders, then wait
+        //Sleep(1000); // TODO: correct time
+
+        // The leader needs to wait a few moments so the other robots can reach it
+        double msToWait = 3000; // TODO: Set correct waiting time
         printf("Leader: waiting for %d ms to form the correct line", msToWait);
 
         stopMotors();

@@ -371,8 +371,12 @@ void step5MoveAway(PolarPoint& oldLeaderPosition, double speedCmPerSecond) {
   double movementDistanceCm = destination.distanceCm;
   double movementTimeMs = (movementDistanceCm / speedCmPerSecond) * 1000.0;
 
+  Print("Moving away for ms: ");
+  Println(movementTimeMs);
+
   move(FORWARD);
   busyWait(movementTimeMs);
+  stopMotors();
 }
 
 void setup() {
@@ -430,6 +434,8 @@ void loop() {
         // Here, robots have moved in arrow formation and are still in this formation
         Println("Arrow formation completed!");
 
+        busyWait(10 * 1000); // TODO: Testing delay
+
         // The leader should wait for a long time to allow the other two robots to reposition
         busyWait(15 * 1000);
 
@@ -456,6 +462,8 @@ void loop() {
         // Here, robots have moved in arrow formation and are still in this formation
         Println("Arrow formation completed!");
 
+        busyWait(10 * 1000); // TODO: Testing delay
+
         // The non-leaders should reposition
         step5MoveAway(robot1Polar, speedCmPerSecond);
 
@@ -480,6 +488,8 @@ void loop() {
 
         // Here, robots have moved in arrow formation and are still in this formation
         Println("Arrow formation completed!");
+
+        busyWait(10 * 1000); // TODO: Testing delay
 
         // The non-leaders should reposition
         step5MoveAway(robot2Polar, speedCmPerSecond);

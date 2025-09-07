@@ -107,10 +107,10 @@ double getGyroDegrees() {
   // will always be zero at the robot's initial orientation
   double val = gyro.getAngleZ() - initialGyroDeg;
 
-  if (val > 360)
+  while (val > 360)
     val -= 360;
 
-  if (val < 0)
+  while (val < 0)
     val += 360;
 
   return val;

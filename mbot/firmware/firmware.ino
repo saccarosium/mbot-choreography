@@ -7,7 +7,7 @@
 #include <math.h>
 #endif
 
-#if 1
+#if 0
 #define Print(msg) Serial.print(msg)
 #define Println(msg) Serial.println(msg)
 #else
@@ -15,7 +15,7 @@
 #define Println(msg) (void*)0
 #endif
 
-// #define ROVER 1
+#define ROVER 1
 
 #if defined(ROVER)
   #define PWM 120
@@ -23,7 +23,13 @@
   #define PWM 70
 #endif
 
-#define GATHERING_STOP_DISTANCE_CM 30.0
+
+#if defined(ROVER)
+  #define GATHERING_STOP_DISTANCE_CM 15.0
+#else
+  #define GATHERING_STOP_DISTANCE_CM 30.0
+#endif
+
 #define GYRO_THRESHOLD 5.0 // Too low causes too much rotation
 
 enum Direction {
@@ -263,8 +269,6 @@ void step2GatherAtRobot(PolarPoint& other, double& measuredSpeedCmPerSecond) {
  * Keeps measuring the distance until the leader moves away
  */
 void step2WaitLeaderStartsMoving() {
-  double initialDistance = sonic_sensor->distanceCm();
-
   // Since the ultrasonic sensor is not always reliable, the distance must
   // be this number of consecutive times above the threshold so that the
   // leader will be considered as moved away
@@ -276,7 +280,7 @@ void step2WaitLeaderStartsMoving() {
 
     // If the measured distance is more than a certain value, it means the
     // leader has moved away
-    if (distance > (initialDistance * 2))
+    if (distance > GATHERING_STOP_DISTANCE_CM + 5)
       checkDistanceFor--;
     else
       checkDistanceFor = 50;

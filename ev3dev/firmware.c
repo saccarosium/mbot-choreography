@@ -726,6 +726,8 @@ int main( void )
                 exit(1);
                 break;
         }
+
+        Sleep(10 * 1000); // TODO: Testing delay
     }
     ev3_uninit();
 	printf( "*** ( EV3 ) Bye! ***\n" );

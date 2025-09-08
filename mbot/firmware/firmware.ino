@@ -7,7 +7,7 @@
 #include <math.h>
 #endif
 
-#if 0
+#if 1
 #define Print(msg) Serial.print(msg)
 #define Println(msg) Serial.println(msg)
 #else
@@ -318,7 +318,7 @@ Point calcMidpoint(Point& p1, Point& p2) {
   };
 }
 
-void moveForCm(int movementDistanceCm, int speedCmPerSecond, bool forward){
+void moveForCm(int movementDistanceCm, double speedCmPerSecond, bool forward){
     double movementTimeMs = (movementDistanceCm / speedCmPerSecond) * 1000.0;
 
     if (forward) {
@@ -327,6 +327,9 @@ void moveForCm(int movementDistanceCm, int speedCmPerSecond, bool forward){
       move(BACKWARD);
     }
     
+    Print("moveForCm (ms): ");
+    Println(movementTimeMs);
+
     busyWait(movementTimeMs);
     stopMotors();
 }
@@ -540,6 +543,8 @@ void loop() {
         exit(1);
         break;
     }
+
+    busyWait(10 * 1000); // TODO: Testing delay
   }
 
   // Stop the main loop to restart

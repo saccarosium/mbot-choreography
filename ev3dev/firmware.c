@@ -514,7 +514,7 @@ void step3MoveInLine(Point *leaderCoord, Point *secondCoord, Point *thirdCoord, 
     // printf("From %d rotate at angle %d\n", getGyroDegrees(), movementPolarOffset.angleDeg);
     rotateAtAngle(movementPolarOffset.angleDeg);
 
-    int lineFormationLengthMm = 1000;
+    int lineFormationLengthMm = 500;
 
     if(isLeader){
         // The leader should move away just a bit so the non-leaders can detect it has moved away
@@ -535,7 +535,7 @@ void step3MoveInLine(Point *leaderCoord, Point *secondCoord, Point *thirdCoord, 
  * Used by all the robots to move in the arrow formation
  */
 void step4MoveInArrow(int speedMmPerSecond){
-    int lineFormationLengthMm = 1000;
+    int lineFormationLengthMm = 500;
     moveForMm(lineFormationLengthMm, speedMmPerSecond, true);
 }
 

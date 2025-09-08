@@ -7,7 +7,7 @@
 #include <math.h>
 #endif
 
-#if 1
+#if 0
 #define Print(msg) Serial.print(msg)
 #define Println(msg) Serial.println(msg)
 #else
@@ -15,15 +15,21 @@
 #define Println(msg) (void*)0
 #endif
 
-#define PWM 50
+// #define ROVER 1
+
+#if defined(ROVER)
+  #define PWM 120
+#else
+  #define PWM 70
+#endif
+
 #define GATHERING_STOP_DISTANCE_CM 30.0
 #define GYRO_THRESHOLD 5.0 // Too low causes too much rotation
-
 
 enum Direction {
   FORWARD,
   BACKWARD,
-  };
+};
 
 enum Rotation {
   TO_THE_LEFT,
@@ -119,10 +125,18 @@ void rotateAtAngle(double degree) {
   Print("Rotating to ");
   Println(degree);
 
-  if (degree > getGyroDegrees())
-    rotate(TO_THE_RIGHT);
-  else
-    rotate(TO_THE_LEFT);
+  #if defined(ROVER)
+    if (degree > getGyroDegrees())
+      rotate(TO_THE_LEFT);
+    else
+      rotate(TO_THE_RIGHT);
+  #else
+    if (degree > getGyroDegrees())
+      rotate(TO_THE_RIGHT);
+    else
+      rotate(TO_THE_LEFT);
+  #endif
+
 
   while (abs(degree - getGyroDegrees()) > GYRO_THRESHOLD) {
     gyro.update();
@@ -338,7 +352,7 @@ void step3MoveInLine(Point& leaderCoord, Point& secondCoord, Point& thirdCoord, 
   // The robot needs to move in the direction specified by this polar point
   rotateAtAngle(movementPolarOffset.angleDeg);
 
-  int lineFormationLengthCm = 100;
+  int lineFormationLengthCm = 50;
 
   if(isLeader){
     // The leader should move away just a bit so the non-leaders can detect it has moved away
@@ -359,7 +373,7 @@ void step3MoveInLine(Point& leaderCoord, Point& secondCoord, Point& thirdCoord, 
  * Used by all the robots to move in the arrow formation
  */
 void step4MoveInArrow(double speedCmPerSecond){
-  int arrowFormationLengthCm = 100;
+  int arrowFormationLengthCm = 50;
 
   moveForCm(arrowFormationLengthCm, speedCmPerSecond, true);
 }
@@ -403,6 +417,15 @@ void setup() {
 }
 
 void loop() {
+#if defined(ROVER)
+  PolarPoint robot1Polar;
+  robot1Polar.angleDeg = 0;
+  robot1Polar.distanceCm = 164;
+
+  PolarPoint robot2Polar;
+  robot2Polar.angleDeg = 342.3;
+  robot2Polar.distanceCm = 70;
+#else
   PolarPoint robot1Polar;
   robot1Polar.angleDeg = 180;
   robot1Polar.distanceCm = 164;
@@ -410,6 +433,7 @@ void loop() {
   PolarPoint robot2Polar;
   robot2Polar.angleDeg = 192.3;
   robot2Polar.distanceCm = 100;
+#endif
 
   Point robot1 = polarPointToPoint(robot1Polar);
   Print(robot1.x);
@@ -426,7 +450,7 @@ void loop() {
   int leader = findLeader(robot1, robot2);
   double speedCmPerSecond = 14.0;
 
-  for (int iterations = 1; iterations > 0; --iterations) {
+  for (int iterations = 2; iterations > 0; --iterations) {
     switch (leader) {
       case 0:
         // other robots should move towards me

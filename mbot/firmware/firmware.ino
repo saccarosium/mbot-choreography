@@ -304,10 +304,15 @@ Point calcMidpoint(Point& p1, Point& p2) {
   };
 }
 
-void moveForCm(int movementDistanceCm, int speedCmPerSecond){
+void moveForCm(int movementDistanceCm, int speedCmPerSecond, bool forward){
     double movementTimeMs = (movementDistanceCm / speedCmPerSecond) * 1000.0;
 
-    move(FORWARD);
+    if (forward) {
+      move(FORWARD);
+    } else {
+      move(BACKWARD);
+    }
+    
     busyWait(movementTimeMs);
     stopMotors();
 }
@@ -346,7 +351,7 @@ void step3MoveInLine(Point& leaderCoord, Point& secondCoord, Point& thirdCoord, 
   }
   else{
     // Non leaders should just move
-    moveForCm(lineFormationLengthCm, speedCmPerSecond);
+    moveForCm(lineFormationLengthCm, speedCmPerSecond, true);
   }
 }
 
@@ -356,7 +361,7 @@ void step3MoveInLine(Point& leaderCoord, Point& secondCoord, Point& thirdCoord, 
 void step4MoveInArrow(double speedCmPerSecond){
   int arrowFormationLengthCm = 100;
 
-  moveForCm(arrowFormationLengthCm, speedCmPerSecond);
+  moveForCm(arrowFormationLengthCm, speedCmPerSecond, true);
 }
 
 /**

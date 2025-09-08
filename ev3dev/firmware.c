@@ -514,29 +514,63 @@ void step3MoveInLine(Point *leaderCoord, Point *secondCoord, Point *thirdCoord, 
     // printf("From %d rotate at angle %d\n", getGyroDegrees(), movementPolarOffset.angleDeg);
     rotateAtAngle(movementPolarOffset.angleDeg);
 
-    int lineFormationLengthMm = 500;
+    // Move forward until hitting an obstacle
+    move(FORWARD);
+
+    int stoppingDistanceMm = 50;
+    int checkDistanceFor = 50;
+    do{
+        Sleep(10);
+        int distance = getUsDistanceMm();
+
+        if(distance < stoppingDistanceMm){
+            checkDistanceFor--;
+        }
+        else{
+            checkDistanceFor = 50;
+        }
+    }
+    while(checkDistanceFor > 0);
+
+    stopMotors();
+
+    checkDistanceFor = 50;
+    // Then, wait until obstacle is removed
+    do{
+        Sleep(10);
+        int distance = getUsDistanceMm();
+
+        if(distance > stoppingDistanceMm){
+            checkDistanceFor--;
+        }
+        else{
+            checkDistanceFor = 50;
+        }
+    }
+    while(checkDistanceFor > 0);
+
+    // Then, move forward in line formation
+    move(FORWARD);
 
     if(isLeader){
-        // The leader should move away just a bit so the non-leaders can detect it has moved away
-        int movingAwayMm = 250;
-        moveForMm(movingAwayMm, speedMmPerSecond, true);
-
-        // Then it waits for them and proceeds in line
-        Sleep(2000);
-        moveForMm(lineFormationLengthMm, speedMmPerSecond, true);
+        Sleep(3000);
     }
     else{
-        // Non leaders should just move
-        moveForMm(lineFormationLengthMm, speedMmPerSecond, true);
+        Sleep(2500);
     }
+
+    stopMotors();
 }
 
 /**
  * Used by all the robots to move in the arrow formation
  */
 void step4MoveInArrow(int speedMmPerSecond){
-    int lineFormationLengthMm = 500;
-    moveForMm(lineFormationLengthMm, speedMmPerSecond, true);
+    move(FORWARD);
+
+    Sleep(2500);
+
+    stopMotors();
 }
 
 /**

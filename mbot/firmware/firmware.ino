@@ -15,7 +15,7 @@
 #define Println(msg) (void*)0
 #endif
 
-#define ROVER 1
+// #define ROVER 1
 
 #if defined(ROVER)
   #define PWM 120
@@ -359,30 +359,62 @@ void step3MoveInLine(Point& leaderCoord, Point& secondCoord, Point& thirdCoord, 
   // The robot needs to move in the direction specified by this polar point
   rotateAtAngle(movementPolarOffset.angleDeg);
 
-  int lineFormationLengthCm = 50;
+  move(FORWARD);
+
+  int stoppingDistanceCm = 5;
+  int checkDistanceFor = 50;
+  do{
+      busyWait(10);
+      int distance = getUsDistanceCm();
+
+      if(distance < stoppingDistanceCm){
+          checkDistanceFor--;
+      }
+      else{
+          checkDistanceFor = 50;
+      }
+  }
+  while(checkDistanceFor > 0);
+
+  stopMotors();
+
+  checkDistanceFor = 50;
+  // Then, wait until obstacle is removed
+  do{
+      busyWait(10);
+      int distance = getUsDistanceCm();
+
+      if(distance > stoppingDistanceCm){
+          checkDistanceFor--;
+      }
+      else{
+          checkDistanceFor = 50;
+      }
+  }
+  while(checkDistanceFor > 0);
+
+  // Then, move forward in line formation
+  move(FORWARD);
 
   if(isLeader){
-    // The leader should move away just a bit so the non-leaders can detect it has moved away
-    int movingAwayCm = 25;
-    moveForCm(movingAwayCm, speedCmPerSecond, true);
-
-    // Then it waits for them and proceeds in line
-    busyWait(2000);
-    moveForCm(lineFormationLengthCm, speedCmPerSecond, true);
+      busyWait(3000);
   }
   else{
-    // Non leaders should just move
-    moveForCm(lineFormationLengthCm, speedCmPerSecond, true);
+      busyWait(2500);
   }
+
+  stopMotors();
 }
 
 /**
  * Used by all the robots to move in the arrow formation
  */
 void step4MoveInArrow(double speedCmPerSecond){
-  int arrowFormationLengthCm = 50;
+  move(FORWARD);
 
-  moveForCm(arrowFormationLengthCm, speedCmPerSecond, true);
+  busyWait(2500);
+
+  stopMotors();
 }
 
 /**

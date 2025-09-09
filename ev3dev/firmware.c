@@ -361,11 +361,9 @@ int calcRobotIn120Angle(Point *r1, Point *r2){
 }
 
 /**
- * Moves towards the robot on that polar coordinates, stopping at some distance from it.
- * Additionally, calculates the average speed of the robot so that it can be used further.
- * The speed is expressed in millimeters/sec
+ * Moves towards the robot on that polar coordinates, stopping at some distance from it
  */
-void step2GatherAtRobot(PolarPoint *other, int *measuredSpeed){
+void step2GatherAtRobot(PolarPoint *other, double *secondsToGather){
     // Face the robot
     rotateAtAngle(other->angleDeg);
 
@@ -384,13 +382,11 @@ void step2GatherAtRobot(PolarPoint *other, int *measuredSpeed){
     }
     while(distance > (gatheringStopDistanceMm * 2)); // Need to stop a bit before since sensor data is probably delayed
 
-    if(measuredSpeed != NULL){
+    if(secondsToGather != NULL){
         gettimeofday(&endTime, NULL);
 
-        double elapsedSeconds = (endTime.tv_sec - startTime.tv_sec) * 1.;
-        elapsedSeconds += (endTime.tv_usec - startTime.tv_usec) / 1000000.0;
-
-        *measuredSpeed = (int)round((initialDistance - gatheringStopDistanceMm) / elapsedSeconds);
+        *secondsToGather = (endTime.tv_sec - startTime.tv_sec) * 1.;
+        *secondsToGather += (endTime.tv_usec - startTime.tv_usec) / 1000000.0;
     }
 }
 
@@ -472,28 +468,12 @@ void step2WaitForGathering(PolarPoint *r1, PolarPoint *r2){
 }
 
 
-void moveForMm(int movementDistanceMm, int speedMmPerSecond, bool forward){
-    double movementTimeMs = (movementDistanceMm / speedMmPerSecond) * 1000.0;
-
-    printf("Moving for %d millimeters, or %d seconds\n", movementDistanceMm, movementTimeMs);
-
-    if(forward){
-        move(FORWARD);
-    }
-    else{
-        move(BACKWARD);
-    }
-
-    Sleep(movementTimeMs);
-    stopMotors();
-}
-
 /**
  * Given the leader robot
  * and the other two robots, moves in the direction linking the position of the leader robot
  * and the middle point of the other two robots
  */
-void step3MoveInLine(Point *leaderCoord, Point *secondCoord, Point *thirdCoord, int speedMmPerSecond, bool isLeader){
+void step3MoveInLine(Point *leaderCoord, Point *secondCoord, Point *thirdCoord, bool isLeader){
     printf("Calculating line to move\n");
 
     Point midPoint;
@@ -560,7 +540,7 @@ void step3MoveInLine(Point *leaderCoord, Point *secondCoord, Point *thirdCoord, 
 /**
  * Used by all the robots to move in the arrow formation
  */
-void step4MoveInArrow(int speedMmPerSecond){
+void step4MoveInArrow(){
     move(FORWARD);
 
     Sleep(2500);
@@ -571,7 +551,7 @@ void step4MoveInArrow(int speedMmPerSecond){
 /**
  * Used by the non-leaders to move away from the arrow formation 
  */
-void step5MoveAway(PolarPoint *oldLeaderPosition, int speedMmPerSecond) {
+void step5MoveAway(PolarPoint *oldLeaderPosition, double secondsToGather) {
     // The old leader position is the position the leader was before the gathering
     // So to move away, simply go to the opposite direction
     PolarPoint destination = {
@@ -590,11 +570,8 @@ void step5MoveAway(PolarPoint *oldLeaderPosition, int speedMmPerSecond) {
     printf("Moving away from leader. Destination: angle %d, distanceMm %d", destination.angleDeg, destination.distanceMm);
     rotateAtAngle(destination.angleDeg);
 
-    int movementDistanceMm = destination.distanceMm;
-    double movementTimeMs = (movementDistanceMm / speedMmPerSecond) * 1000.0;
-    
     move(FORWARD);
-    Sleep(movementTimeMs);
+    Sleep(secondsToGather * 1000);
     stopMotors();
 }
 
@@ -652,14 +629,13 @@ int main( void )
     int robotIn120Degrees = calcRobotIn120Angle(&robot1, &robot2);
     printf("Robot in 120 degrees is: %d\n", robotIn120Degrees);
 
-    // TODO: When MINDSTORM have batteries at 7.53, speed is 120
-    int speedMmPerSecond = 120; // Calculated manually
-
     int choreographyIterations = 2;
 
     while(choreographyIterations > 0){
         printf("Starting new choreography iteration\n");
         choreographyIterations--;
+
+        double secondsToGather = 0;
 
         switch (robotIn120Degrees){
             case 0:
@@ -671,15 +647,14 @@ int main( void )
                 printf("Gathering completed!\n");
 
                 // Move in line
-                step3MoveInLine(&self, &robot1, &robot2, speedMmPerSecond, true);
+                step3MoveInLine(&self, &robot1, &robot2, true);
 
                 // Here, robots have moved in line and are currently stopped
                 printf("Line formation completed!\n");
 
                 Sleep(10 * 1000); // TODO: Testing delay
 
-
-                step4MoveInArrow(speedMmPerSecond);
+                step4MoveInArrow();
                 
                 // Here, robots have moved in arrow formation and are still in this formation
                 printf("Arrow formation completed!\n");
@@ -687,8 +662,9 @@ int main( void )
                 Sleep(10 * 1000); // TODO: Testing delay
 
                 // The leader should reposition a bit back
-                int movingAwayMm = 250;
-                moveForMm(movingAwayMm, speedMmPerSecond, false);
+                move(BACKWARD);
+                Sleep(1500); // TODO: timing
+                stopMotors();
 
                 // The leader should wait for a long time to allow the other two robots to reposition
                 Sleep(15 * 1000);
@@ -697,21 +673,21 @@ int main( void )
 
             case 1:
                 // gather at robot 1
-                step2GatherAtRobot(&robot1Polar, &speedMmPerSecond);
+                step2GatherAtRobot(&robot1Polar, &secondsToGather);
                 
                 // Here, the three robots have gathered
                 printf("Gathering completed!\n");
                 
                 // Move in line
                 step2WaitLeaderStartsMoving();
-                step3MoveInLine(&robot1, &robot2, &self, speedMmPerSecond, false);
+                step3MoveInLine(&robot1, &robot2, &self, false);
 
                 // Here, robots have moved in line and are currently stopped
                 printf("Line formation completed!\n");
 
                 Sleep(10 * 1000); // TODO: Testing delay
 
-                step4MoveInArrow(speedMmPerSecond);
+                step4MoveInArrow();
                 
                 // Here, robots have moved in arrow formation and are still in this formation
                 printf("Arrow formation completed!\n");
@@ -719,26 +695,26 @@ int main( void )
                 Sleep(10 * 1000); // TODO: Testing delay
                 
                 // The non-leaders should reposition
-                step5MoveAway(&robot1Polar, speedMmPerSecond);
+                step5MoveAway(&robot1Polar, secondsToGather);
 
                 break;
             case 2:
                 // gather at robot 2
-                step2GatherAtRobot(&robot2Polar, &speedMmPerSecond);
+                step2GatherAtRobot(&robot2Polar, &secondsToGather);
                 
                 // Here, the three robots have gathered
                 printf("Gathering completed!\n");
                 
                 // Move in line
                 step2WaitLeaderStartsMoving();
-                step3MoveInLine(&robot2, &robot1, &self, speedMmPerSecond, false);
+                step3MoveInLine(&robot2, &robot1, &self, false);
 
                 // Here, robots have moved in line and are currently stopped
                 printf("Line formation completed!\n");
 
                 Sleep(10 * 1000); // TODO: Testing delay
 
-                step4MoveInArrow(speedMmPerSecond);
+                step4MoveInArrow();
                 
                 // Here, robots have moved in arrow formation and are still in this formation
                 printf("Arrow formation completed!\n");
@@ -746,7 +722,7 @@ int main( void )
                 Sleep(10 * 1000); // TODO: Testing delay
                 
                 // The non-leaders should reposition
-                step5MoveAway(&robot2Polar, speedMmPerSecond);
+                step5MoveAway(&robot2Polar, secondsToGather);
                 break;
             
             default:

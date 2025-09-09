@@ -487,6 +487,8 @@ void loop() {
 
         busyWait(10 * 1000); // TODO: Testing delay
 
+        // TODO: Leader repositions
+
         // The leader should wait for a long time to allow the other two robots to reposition
         busyWait(15 * 1000);
 

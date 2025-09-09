@@ -15,12 +15,12 @@
 #define Println(msg) (void*)0
 #endif
 
-#define ROVER 1
+//#define ROVER 1
 
 #if defined(ROVER)
-  #define PWM 120
+  #define PWM 110
 #else
-  #define PWM 70
+  #define PWM 60
 #endif
 
 
@@ -458,6 +458,23 @@ void loop() {
   };
 
   int leader = findLeader(robot1, robot2);
+
+  // int checkDistanceFor = 50;
+  // do{
+  //     busyWait(10);
+  //     int obstacleDistance = getUsDistanceCm();
+
+  //     if(obstacleDistance > 10){
+  //         checkDistanceFor--;
+  //     }
+  //     else{
+  //         checkDistanceFor = 50;
+  //     }
+  // }
+  // while(checkDistanceFor > 0);
+  // move(FORWARD);
+  // busyWait(5000);
+  // stopMotors();
 
   for (int iterations = 2; iterations > 0; --iterations) {
 

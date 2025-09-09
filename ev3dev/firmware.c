@@ -81,14 +81,10 @@ void initMotors(){
             int count_per_rot;
             get_tacho_count_per_rot(l_motor_sn, &count_per_rot);
 
-            // Set speed to min(2 * 60 rpm, max_speed)
-            int speed = 2 * 60 * count_per_rot;
             int max_speed;
             get_tacho_max_speed(l_motor_sn, &max_speed);
 
-            printf("Setting speed to min(%d, %d / 2)\n", speed, max_speed);
-
-            motorsSpeed = min(speed, max_speed / 2);
+            motorsSpeed = (max_speed * 70) / 100;
 
             // Setting stop action to hold the position
             // This allows to brake faster
@@ -145,12 +141,12 @@ void move(Direction direction){
             set_tacho_speed_sp(r_motor_sn, -motorsSpeed);
             break;
         case RIGHT:
-            set_tacho_speed_sp(l_motor_sn, motorsSpeed);
-            set_tacho_speed_sp(r_motor_sn, -motorsSpeed);
+            set_tacho_speed_sp(l_motor_sn, motorsSpeed / 2);
+            set_tacho_speed_sp(r_motor_sn, -motorsSpeed / 2);
             break;
         case LEFT:
-            set_tacho_speed_sp(l_motor_sn, -motorsSpeed);
-            set_tacho_speed_sp(r_motor_sn, motorsSpeed);
+            set_tacho_speed_sp(l_motor_sn, -motorsSpeed / 2);
+            set_tacho_speed_sp(r_motor_sn, motorsSpeed / 2);
             break;
     }
     set_tacho_command_inx(l_motor_sn, TACHO_RUN_FOREVER);
@@ -441,6 +437,8 @@ void step2WaitForGathering(PolarPoint *r1, PolarPoint *r2){
     PolarPoint midPointPolar;
     pointToPolarPoint(&midPoint, &midPointPolar);
 
+    set_sensor_mode(ultrasonic_sn, "US-LISTEN");
+
     rotateAtAngle(midPointPolar.angleDeg);
 
     // Then, sleep for a long time
@@ -448,6 +446,9 @@ void step2WaitForGathering(PolarPoint *r1, PolarPoint *r2){
 
     // Wait for robot 1
     rotateAtAngle(r1->angleDeg);
+
+    set_sensor_mode(ultrasonic_sn, "US-DIST-CM");
+
     int distance = 0;
     
     do{
@@ -630,6 +631,23 @@ int main( void )
     printf("Robot in 120 degrees is: %d\n", robotIn120Degrees);
 
     int choreographyIterations = 2;
+
+    // int checkDistanceFor = 50;
+    // do{
+    //     Sleep(10);
+    //     int obstacleDistance = getUsDistanceMm();
+
+    //     if(obstacleDistance > 100){
+    //         checkDistanceFor--;
+    //     }
+    //     else{
+    //         checkDistanceFor = 50;
+    //     }
+    // }
+    // while(checkDistanceFor > 0);
+    // move(FORWARD);
+    // Sleep(5000);
+    // stopMotors();
 
     while(choreographyIterations > 0){
         printf("Starting new choreography iteration\n");

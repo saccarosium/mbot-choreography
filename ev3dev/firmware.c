@@ -517,30 +517,25 @@ void step3MoveInLine(Point *leaderCoord, Point *secondCoord, Point *thirdCoord, 
     // Move forward until hitting an obstacle
     move(FORWARD);
 
-    int stoppingDistanceMm = 50;
-    int checkDistanceFor = 50;
+    int stoppingDistanceMm = 100;
+
+    int obstacleDistance = 0;
+    
     do{
         Sleep(10);
-        int distance = getUsDistanceMm();
-
-        if(distance < stoppingDistanceMm){
-            checkDistanceFor--;
-        }
-        else{
-            checkDistanceFor = 50;
-        }
+        obstacleDistance = getUsDistanceMm();
     }
-    while(checkDistanceFor > 0);
+    while(obstacleDistance > stoppingDistanceMm);
 
     stopMotors();
 
-    checkDistanceFor = 50;
     // Then, wait until obstacle is removed
+    int checkDistanceFor = 50;
     do{
         Sleep(10);
-        int distance = getUsDistanceMm();
+        int obstacleDistance = getUsDistanceMm();
 
-        if(distance > stoppingDistanceMm){
+        if(obstacleDistance > stoppingDistanceMm){
             checkDistanceFor--;
         }
         else{

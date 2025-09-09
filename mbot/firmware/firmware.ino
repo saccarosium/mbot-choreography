@@ -15,7 +15,7 @@
 #define Println(msg) (void*)0
 #endif
 
-// #define ROVER 1
+#define ROVER 1
 
 #if defined(ROVER)
   #define PWM 120
@@ -359,32 +359,28 @@ void step3MoveInLine(Point& leaderCoord, Point& secondCoord, Point& thirdCoord, 
   // The robot needs to move in the direction specified by this polar point
   rotateAtAngle(movementPolarOffset.angleDeg);
 
+  // Move forward until hitting an obstacle
   move(FORWARD);
 
-  int stoppingDistanceCm = 5;
+  int stoppingDistanceCm = 10;
+
+  int obstacleDistance = 0;
+    
+  do{
+    busyWait(10);
+    obstacleDistance = getUsDistanceCm();
+  }
+  while(obstacleDistance > stoppingDistanceCm);
+  
+  stopMotors();
+  
+  // Then, wait until obstacle is removed
   int checkDistanceFor = 50;
   do{
       busyWait(10);
-      int distance = getUsDistanceCm();
+      int obstacleDistance = getUsDistanceCm();
 
-      if(distance < stoppingDistanceCm){
-          checkDistanceFor--;
-      }
-      else{
-          checkDistanceFor = 50;
-      }
-  }
-  while(checkDistanceFor > 0);
-
-  stopMotors();
-
-  checkDistanceFor = 50;
-  // Then, wait until obstacle is removed
-  do{
-      busyWait(10);
-      int distance = getUsDistanceCm();
-
-      if(distance > stoppingDistanceCm){
+      if(obstacleDistance > stoppingDistanceCm){
           checkDistanceFor--;
       }
       else{

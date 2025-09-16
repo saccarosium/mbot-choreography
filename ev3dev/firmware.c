@@ -508,10 +508,14 @@ void step3MoveInLine(Point *leaderCoord, Point *secondCoord, Point *thirdCoord, 
     }
     while(obstacleDistance > stoppingDistanceMm);
 
+    // Only the mindstorm, wait a bit so not to stop exactly at the stopping distance
+    // otherwise it could alter the obstacle removal detection
+    Sleep(100);
+
     stopMotors();
 
     // Then, wait until obstacle is removed
-    int checkDistanceFor = 50;
+    int checkDistanceFor = 75;
     do{
         Sleep(10);
         int obstacleDistance = getUsDistanceMm();
@@ -520,7 +524,7 @@ void step3MoveInLine(Point *leaderCoord, Point *secondCoord, Point *thirdCoord, 
             checkDistanceFor--;
         }
         else{
-            checkDistanceFor = 50;
+            checkDistanceFor = 75;
         }
     }
     while(checkDistanceFor > 0);
@@ -529,7 +533,7 @@ void step3MoveInLine(Point *leaderCoord, Point *secondCoord, Point *thirdCoord, 
     move(FORWARD);
 
     if(isLeader){
-        Sleep(3000);
+        Sleep(3500);
     }
     else{
         Sleep(2500);
@@ -670,7 +674,8 @@ int main( void )
                 // Here, robots have moved in line and are currently stopped
                 printf("Line formation completed!\n");
 
-                Sleep(10 * 1000); // TODO: Testing delay
+                // NOTE: 1 second less since the leader has stopped a bit later
+                Sleep(10 * 1000 - 1000); // TODO: Testing delay
 
                 step4MoveInArrow();
                 

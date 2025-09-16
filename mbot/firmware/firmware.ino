@@ -15,10 +15,12 @@
 #define Println(msg) (void*)0
 #endif
 
-//#define ROVER 1
+#define ROVER 1
+
+#define ROTATION_PWM 140
 
 #if defined(ROVER)
-  #define PWM 110
+  #define PWM 105
 #else
   #define PWM 60
 #endif
@@ -72,12 +74,22 @@ void busyWait(uint64_t ms) {
 void rotate(Rotation rotation) {
   switch (rotation) {
     case TO_THE_RIGHT:
-      RightMotor.setMotorPwm(PWM);
-      LeftMotor.setMotorPwm(PWM);
+      #if defined(ROVER)
+        RightMotor.setMotorPwm(ROTATION_PWM);
+        LeftMotor.setMotorPwm(ROTATION_PWM);
+      #else
+        RightMotor.setMotorPwm(PWM);
+        LeftMotor.setMotorPwm(PWM);
+      #endif
       break;
     case TO_THE_LEFT:
-      RightMotor.setMotorPwm(-PWM);
-      LeftMotor.setMotorPwm(-PWM);
+      #if defined(ROVER)
+        RightMotor.setMotorPwm(-ROTATION_PWM);
+        LeftMotor.setMotorPwm(-ROTATION_PWM);
+      #else
+        RightMotor.setMotorPwm(-PWM);
+        LeftMotor.setMotorPwm(-PWM);
+      #endif
       break;
   }
 }
@@ -353,7 +365,13 @@ void step3MoveInLine(Point& leaderCoord, Point& secondCoord, Point& thirdCoord, 
   stopMotors();
   
   // Then, wait until obstacle is removed
-  int checkDistanceFor = 50;
+  #if defined(ROVER)
+    int initialCheckDistanceFor = 30;
+  #else
+    int initialCheckDistanceFor = 50;
+  #endif
+
+  int checkDistanceFor = initialCheckDistanceFor;
   do{
       busyWait(10);
       int obstacleDistance = getUsDistanceCm();
@@ -362,7 +380,7 @@ void step3MoveInLine(Point& leaderCoord, Point& secondCoord, Point& thirdCoord, 
           checkDistanceFor--;
       }
       else{
-          checkDistanceFor = 50;
+          checkDistanceFor = initialCheckDistanceFor;
       }
   }
   while(checkDistanceFor > 0);

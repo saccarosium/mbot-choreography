@@ -675,18 +675,18 @@ int main( void )
                 printf("Line formation completed!\n");
 
                 // NOTE: 1 second less since the leader has stopped a bit later
-                Sleep(10 * 1000 - 1000); // TODO: Testing delay
+                Sleep(10 * 1000 - 1000);
 
                 step4MoveInArrow();
                 
                 // Here, robots have moved in arrow formation and are still in this formation
                 printf("Arrow formation completed!\n");
 
-                Sleep(10 * 1000); // TODO: Testing delay
+                Sleep(10 * 1000);
 
                 // The leader should reposition a bit back
                 move(BACKWARD);
-                Sleep(1500); // TODO: timing
+                Sleep(1500);
                 stopMotors();
 
                 // The leader should wait for a long time to allow the other two robots to reposition
@@ -708,14 +708,14 @@ int main( void )
                 // Here, robots have moved in line and are currently stopped
                 printf("Line formation completed!\n");
 
-                Sleep(10 * 1000); // TODO: Testing delay
+                Sleep(10 * 1000);
 
                 step4MoveInArrow();
                 
                 // Here, robots have moved in arrow formation and are still in this formation
                 printf("Arrow formation completed!\n");
 
-                Sleep(10 * 1000); // TODO: Testing delay
+                Sleep(10 * 1000);
                 
                 // The non-leaders should reposition
                 step5MoveAway(&robot1Polar, secondsToGather);
@@ -735,14 +735,14 @@ int main( void )
                 // Here, robots have moved in line and are currently stopped
                 printf("Line formation completed!\n");
 
-                Sleep(10 * 1000); // TODO: Testing delay
+                Sleep(10 * 1000);
 
                 step4MoveInArrow();
                 
                 // Here, robots have moved in arrow formation and are still in this formation
                 printf("Arrow formation completed!\n");
 
-                Sleep(10 * 1000); // TODO: Testing delay
+                Sleep(10 * 1000);
                 
                 // The non-leaders should reposition
                 step5MoveAway(&robot2Polar, secondsToGather);
@@ -755,7 +755,7 @@ int main( void )
                 break;
         }
 
-        Sleep(10 * 1000); // TODO: Testing delay
+        Sleep(10 * 1000);
     }
     ev3_uninit();
 	printf( "*** ( EV3 ) Bye! ***\n" );
